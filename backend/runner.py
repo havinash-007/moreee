@@ -144,23 +144,38 @@ def prepare_repo(spec: dict, work: Path, login: str, api=None, sleep=time.sleep)
     Written against the real `gh`: `--remote` is rejected when a repository argument is given, and a fresh fork can take a few
     seconds to become cloneable. Returns (repo_dir, upstream_default_branch)."""
     repo, name = spec["repo"], spec["repo"].split("/")[1]
+    owner = repo.split("/")[0]
     say = (lambda t: api.event("fork", t)) if api else (lambda t: None)
-    say("Forking the repository to your account…")
-    sh(["gh", "repo", "fork", repo, "--clone=false", "--default-branch-only"], work)
-    parent = ""
-    for _ in range(15):  # wait until GitHub reports the fork (up to ~30 s)
-        parent = sh(["gh", "repo", "view", f"{login}/{name}", "--json", "parent", "-q", ".parent.nameWithOwner"], work, check=False).strip()
-        if parent:
+    parent_of = lambda n: sh(["gh", "repo", "view", f"{login}/{n}", "--json", "parent", "-q", ".parent.nameWithOwner"], work, check=False).strip()
+    # The student may already own a repo called `name` that is NOT a fork of this project (e.g. their own `keploy`). Reuse a real fork
+    # if there is one, otherwise fork under `name`, then `name-owner`, never touching a repo that is not a fork of the project.
+    fork_name = ""
+    for cand in (name, f"{name}-{owner}"):
+        if parent_of(cand).lower() == repo.lower():
+            fork_name = cand
+            say(f"You already have a fork ({login}/{cand}). Using it.")
             break
-        sleep(2)
-    if parent.lower() != repo.lower():
-        raise RuntimeError(f"{login}/{name} exists but is not a fork of {repo}. Rename or delete it, then try again.")
+        if sh(["gh", "repo", "view", f"{login}/{cand}", "--json", "name", "-q", ".name"], work, check=False).strip():
+            say(f"{login}/{cand} already exists and is not a fork of {repo}; leaving it alone.")
+            continue
+        say("Forking the repository to your account…" if cand == name else f"Forking it as {login}/{cand}…")
+        cmd = ["gh", "repo", "fork", repo, "--clone=false", "--default-branch-only"] + (["--fork-name", cand] if cand != name else [])
+        sh(cmd, work)
+        for _ in range(15):  # wait until GitHub reports the fork (up to ~30 s)
+            if parent_of(cand).lower() == repo.lower():
+                fork_name = cand
+                break
+            sleep(2)
+        if fork_name:
+            break
+    if not fork_name:
+        raise RuntimeError(f"Could not create a fork of {repo}: {login}/{name} and {login}/{name}-{owner} are taken or not ready. Rename or delete one, then try again.")
     say("Fork ready. Cloning it…")
-    repo_dir = work / name
+    repo_dir = work / fork_name
     last = None
     for _ in range(5):  # a brand-new fork is sometimes not cloneable for a moment
         try:
-            sh(["gh", "repo", "clone", f"{login}/{name}"], work)
+            sh(["gh", "repo", "clone", f"{login}/{fork_name}"], work)
             last = None
             break
         except RuntimeError as e:

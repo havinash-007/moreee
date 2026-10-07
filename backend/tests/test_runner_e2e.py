@@ -48,9 +48,14 @@ def world(tmp_path, monkeypatch):
             # strict like the real gh: --remote is invalid with a repository argument; --clone=false must be explicit to avoid a prompt
             if "--remote" in a: print("the `--remote` flag is unsupported when a repository argument is provided", file=sys.stderr); sys.exit(1)
             if "--clone=false" not in a: print("would prompt: Would you like to clone the fork?", file=sys.stderr); sys.exit(1)
-            rec("forked", a[2])
+            rec("forked", a[2]); rec("fork_name", a[a.index("--fork-name") + 1] if "--fork-name" in a else "")
+            if a[2] == "acme/widgets": open(LOG + ".made", "a").write((a[a.index("--fork-name") + 1] if "--fork-name" in a else "widgets") + "\\n")
         elif a[:2] == ["repo", "view"] and "parent" in " ".join(a):
-            print("acme/widgets" if a[2].startswith("student/") else "")
+            made = open(LOG + ".made").read().split() if os.path.exists(LOG + ".made") else []
+            n = a[2].split("/")[1]
+            print("acme/widgets" if a[2].startswith("student/") and (n in made or os.environ.get("FAKE_GH_PREFORKED")) else "")
+        elif a[:2] == ["repo", "view"] and "name" in " ".join(a):
+            print(a[2].split("/")[1] if a[2] in os.environ.get("FAKE_GH_TAKEN", "").split(",") else "")
         elif a[:2] == ["repo", "view"]: print("main")
         elif a[:2] == ["repo", "clone"]:
             name = a[2].split("/")[1]
@@ -147,10 +152,26 @@ def test_fork_step_matches_the_real_gh_and_adds_upstream_itself(world, tmp_path)
         assert "upstream" in git("remote", cwd=repo_dir) and "origin" in git("remote", cwd=repo_dir)   # runner added upstream itself
         calls = json.load(open(world["log"]))
         assert calls["forked"] == "acme/widgets"
-        with pytest.raises(RuntimeError, match="not a fork of acme/other"):                           # name clash with an unrelated repo
-            runner.prepare_repo({"repo": "acme/other", "number": 1}, work, "nobody", sleep=lambda *_: None)
+        assert calls["fork_name"] == ""                                                               # default name when it is free
     finally:
         os.environ["PATH"] = old_path
+
+
+def test_fork_falls_back_to_owner_suffixed_name_when_the_name_is_taken(world, tmp_path):
+    """The user's real failure: student/widgets exists but is not a fork of acme/widgets. Must not touch it; fork as widgets-acme."""
+    from backend import runner
+    env = dict(world["env"]); old = dict(os.environ); os.environ.update(PATH=env["PATH"], FAKE_GH_TAKEN="student/widgets")
+    try:
+        work = tmp_path / "w"; work.mkdir()
+        repo_dir, _ = runner.prepare_repo({"repo": "acme/widgets", "number": 7}, work, "student", sleep=lambda *_: None)
+        assert json.load(open(world["log"]))["fork_name"] == "widgets-acme"
+        assert repo_dir.name == "widgets-acme"
+        os.remove(str(world["log"]) + ".made")                                                       # forget the fork made above
+        os.environ["FAKE_GH_TAKEN"] = "student/widgets,student/widgets-acme"
+        with pytest.raises(RuntimeError, match="taken or not ready"):
+            runner.prepare_repo({"repo": "acme/widgets", "number": 7}, work, "student", sleep=lambda *_: None)
+    finally:
+        os.environ.clear(); os.environ.update(old)
 
 
 def test_errors_are_one_readable_line_not_a_usage_dump(tmp_path):
