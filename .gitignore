@@ -10,3 +10,7 @@ mentor/journal.md
 .vercel
 .env*
 !.env.example
+
+# unused launch-video experiment (not part of the app)
+video/node_modules/
+video/out/

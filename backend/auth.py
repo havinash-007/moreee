@@ -169,16 +169,31 @@ def login(request: Request):
 
 
 @router.get("/auth/callback")
-def callback(request: Request, code: str = "", state: str = ""):
+def callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    def back(flag: str = ""):
+        r = RedirectResponse("/" + (f"?login={flag}" if flag else ""))
+        r.delete_cookie(STATE_COOKIE)
+        return r
+
+    if error:  # the student pressed Cancel on GitHub's page: send them home, no error screen
+        return back("cancelled")
     if not code or not state or not secrets.compare_digest(state, request.cookies.get(STATE_COOKIE, "")):
         raise HTTPException(400, "Login state mismatch. Start again.")
-    tok = httpx.post("https://github.com/login/oauth/access_token",
-                     data={"client_id": config.GITHUB_CLIENT_ID, "client_secret": config.GITHUB_CLIENT_SECRET,
-                           "code": code, "redirect_uri": f"{config.BASE_URL}/auth/callback"},
-                     headers={"Accept": "application/json"}, timeout=20).json().get("access_token")
-    if not tok:
-        raise HTTPException(400, "GitHub did not return a token.")
-    me = httpx.get("https://api.github.com/user", headers={"Authorization": f"Bearer {tok}"}, timeout=20).json()
+    try:
+        reply = httpx.post("https://github.com/login/oauth/access_token",
+                           data={"client_id": config.GITHUB_CLIENT_ID, "client_secret": config.GITHUB_CLIENT_SECRET,
+                                 "code": code, "redirect_uri": f"{config.BASE_URL}/auth/callback"},
+                           headers={"Accept": "application/json"}, timeout=20).json()
+        tok = reply.get("access_token") if isinstance(reply, dict) else None
+        if not tok:
+            why = (reply.get("error_description") or reply.get("error") or "no token") if isinstance(reply, dict) else "no token"
+            raise HTTPException(400, f"GitHub refused the login ({why}). Start again.")
+        mr = httpx.get("https://api.github.com/user", headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"}, timeout=20)
+        me = mr.json()
+        if mr.status_code != 200 or not isinstance(me, dict) or "login" not in me:
+            raise HTTPException(502, "GitHub did not return your profile. Try again.")
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(502, "Could not reach GitHub. Try again in a moment.")
     if len(SESSIONS) >= MAX_SESSIONS:  # drop the oldest rather than grow without bound
         for k in sorted(SESSIONS, key=lambda k: SESSIONS[k].created)[:100]:
             SESSIONS.pop(k, None)
@@ -188,9 +203,8 @@ def callback(request: Request, code: str = "", state: str = ""):
     else:
         sid = secrets.token_urlsafe(32)
         SESSIONS[sid] = user
-    r = RedirectResponse("/")
+    r = back()
     r.set_cookie(COOKIE, sid, httponly=True, samesite="lax", secure=_secure(request), max_age=SESSION_DAYS * 86400)
-    r.delete_cookie(STATE_COOKIE)
     return r
 
 
