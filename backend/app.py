@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, auth, catalogue, config, jobs, llm, matcher, replier
+from . import agents, auth, catalogue, config, jobs, llm, matcher, profiles, replier
 
 app = FastAPI(title="oss-mentor")
 app.include_router(auth.router)
@@ -96,6 +96,11 @@ class SendReq(BaseModel):
     pr_url: str
     items: list[dict]
     disclose: bool = True
+
+
+@app.exception_handler(profiles.ProfileError)
+async def _profile_err(_, e):
+    return JSONResponse({"error": str(e), "kind": "profile"}, status_code=422)
 
 
 @app.exception_handler(jobs.JobError)
@@ -301,6 +306,48 @@ def replies_send(r: SendReq, user: auth.User = Depends(auth.require_user)):
 def usage(user: auth.User = Depends(auth.require_user)):
     return {"session": llm.ledger.session(user.login).as_dict(), "total": llm.ledger.total.as_dict(),
             "session_budget_usd": config.SESSION_BUDGET_USD}
+
+
+# ------------------------------------------------------------------ profile
+class ProfileReq(BaseModel):
+    answers: dict | None = None
+    settings: dict | None = None
+
+
+def _usage_for(user: auth.User) -> dict:
+    return {"session": llm.ledger.session(user.login).as_dict(), "session_budget_usd": config.SESSION_BUDGET_USD}
+
+
+@app.get("/api/profile")
+def profile_get(user: auth.User = Depends(auth.require_user)):
+    p = profiles.get(user.login)
+    return {"identity": auth.public(user), "answers": p["answers"], "settings": p["settings"], "updated": p["updated"],
+            "activity": profiles.activity(user.login), "usage": _usage_for(user),
+            "auth": {"mode": "github" if auth.hosted() else "local", "session_days": auth.SESSION_DAYS},
+            "stored": ["Your quiz answers and settings", "Your Full-auto jobs and their progress events", "Mentor usage totals (kept in memory)",
+                       "Your GitHub login, name and avatar for this session only (your GitHub token stays on the server and is never sent to your browser)"]}
+
+
+@app.put("/api/profile")
+def profile_put(r: ProfileReq, user: auth.User = Depends(auth.require_user)):
+    return profiles.save(user.login, r.answers, r.settings, QUESTIONS)
+
+
+@app.get("/api/profile/export")
+def profile_export(user: auth.User = Depends(auth.require_user)):
+    data = profiles.export(user.login, auth.public(user), _usage_for(user))
+    return JSONResponse(data, headers={"Content-Disposition": 'attachment; filename="oss-mentor-my-data.json"'})
+
+
+@app.delete("/api/profile")
+def profile_delete(request: Request, user: auth.User = Depends(auth.require_user)):
+    out = profiles.delete_everything(user.login)
+    llm.ledger.sessions.pop(user.login, None)
+    resp = JSONResponse({"ok": True, **out})
+    if auth.hosted():  # deleting your data also signs you out
+        auth.SESSIONS.pop(request.cookies.get(auth.COOKIE, ""), None)
+        resp.delete_cookie(auth.COOKIE)
+    return resp
 
 
 # ------------------------------------------------------------------ Full-auto jobs (the worker runs on the student's machine)

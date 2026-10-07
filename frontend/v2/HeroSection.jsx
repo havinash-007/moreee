@@ -5,6 +5,8 @@ export default function HeroSection({
   onStart = () => {},
   onLogin = null,            // pass a function to show "Continue with GitHub" instead of Start
   orgCount = 14,
+  onUseSaved = null,         // returning student: skip the quiz
+  savedSummary = '',
 }) {
   const stats = [
     ['10', 'questions'],
@@ -45,6 +47,11 @@ export default function HeroSection({
               className="rounded-full bg-white px-10 py-4 text-lg font-extrabold text-zinc-950 shadow-[0_0_60px_-10px_rgba(125,211,252,0.55)] transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400"
             >
               Find my first issue →
+            </button>
+          )}
+          {onUseSaved && (
+            <button onClick={onUseSaved} className="rounded-full border-2 border-white/25 bg-white/5 px-8 py-4 text-lg font-extrabold text-white backdrop-blur transition duration-200 hover:scale-105 hover:border-sky-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300">
+              Use my saved profile{savedSummary ? <span className="ml-2 text-sm font-semibold text-zinc-400">{savedSummary}</span> : null}
             </button>
           )}
           <span className="text-sm font-semibold text-zinc-400">Takes about 2 minutes. Drag the galaxy while you wait.</span>

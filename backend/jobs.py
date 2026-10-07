@@ -168,6 +168,17 @@ def cancel(user: str, job_id: str) -> dict:
     return get(user, job_id)
 
 
+def delete_all(user: str) -> int:
+    """Remove every job and event for a student (used by 'delete my data'). Any live job is cancelled first so a runner stops."""
+    with db.connect() as con:
+        ids = [r[0] for r in con.execute("SELECT id FROM jobs WHERE user=?", (user,)).fetchall()]
+        for i in ids:
+            con.execute("DELETE FROM events WHERE job_id=?", (i,))
+        con.execute("DELETE FROM jobs WHERE user=?", (user,))
+        con.commit()
+    return len(ids)
+
+
 # --------------------------------------------------------------------------- runner side (authenticated by the one-time token)
 def authenticate(job_id: str, token: str) -> dict:
     with db.connect() as con:

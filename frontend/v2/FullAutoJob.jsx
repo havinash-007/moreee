@@ -45,10 +45,10 @@ const Box = ({ children, tone = 'plain' }) => (
 
 export default function FullAutoJob({
   issue = { repo: 'owner/repo', number: 1, title: 'Example', url: '#', legal: [] }, job = null, command = '', error = '', busy = false,
-  onCreate = () => {}, onApprove = () => {}, onCancel = () => {}, onBack = () => {}, onLearn = () => {},
+  defaultSignoff = false, onCreate = () => {}, onApprove = () => {}, onCancel = () => {}, onBack = () => {}, onLearn = () => {},
 }) {
   const [consent, setConsent] = React.useState(false);
-  const [signoff, setSignoff] = React.useState(false);
+  const [signoff, setSignoff] = React.useState(!!defaultSignoff);
   const [understood, setUnderstood] = React.useState(false);
   const [cla, setCla] = React.useState(false);
   const [title, setTitle] = React.useState('');

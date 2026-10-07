@@ -16,8 +16,10 @@ const FRIENDLY = {
   github: 'GitHub is busy or unreachable. Wait a few seconds and try again.',
 };
 
-async function api(path, body) {
-  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+async function api(path, body, method, putBody) {
+  const init = method ? { method, headers: { 'Content-Type': 'application/json' }, body: putBody ? JSON.stringify(putBody) : undefined }
+    : body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+  const r = await fetch(path, init);
   const j = await r.json().catch(() => ({ error: 'Bad response from server' }));
   if (r.status === 401) { const e = new Error('login'); e.login = true; throw e; }
   if (r.status === 404 && j.detail === 'Not Found') { const e = new Error('The server is older than this page. Restart it with ./run.sh and reload.'); e.kind = 'stale'; throw e; }
@@ -51,7 +53,7 @@ async function streamScout(body, onStep) {
 }
 
 export default function App() {
-  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress, BrowseCatalogue, FullAutoJob } = window.OSS;
+  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress, BrowseCatalogue, FullAutoJob, ProfilePage } = window.OSS;
   const [view, setView] = React.useState('mentor');
   const [step, setStep] = React.useState('hero');
   const [me, setMe] = React.useState({ hosted: false, login: 'local' });
@@ -66,6 +68,9 @@ export default function App() {
   const [discLoading, setDiscLoading] = React.useState(false);
   const [discError, setDiscError] = React.useState('');
   const [org, setOrg] = React.useState(null);
+  const [profile, setProfile] = React.useState(null);
+  const [profErr, setProfErr] = React.useState('');
+  const [profNote, setProfNote] = React.useState('');
   const [job, setJob] = React.useState(null);
   const [jobCmd, setJobCmd] = React.useState('');
   const [jobErr, setJobErr] = React.useState('');
@@ -110,6 +115,14 @@ export default function App() {
     })();
   }, []);
 
+  // load the signed-in student's saved profile (also lets a returning student skip the quiz)
+  const loadProfile = async () => { try { const p = await api('/api/profile'); setProfile(p); return p; } catch (e) { if (e.login) setMe({ hosted: true, login: null }); return null; } };
+  React.useEffect(() => { if (!me.hosted || me.login) loadProfile(); else setProfile(null); }, [me.hosted, me.login]);
+  React.useEffect(() => { if (view === 'profile') { setProfNote(''); setProfErr(''); loadProfile(); if (!qs.length) api('/api/questions').then(setQs).catch(() => {}); } }, [view]);
+  const saved = (profile && profile.answers) || {};
+  const hasSaved = Object.keys(saved).length >= 5;
+  const summary = [(saved.languages || []).slice(0, 2).join(', '), saved.skill].filter(Boolean).join(' · ');
+
   // Full-auto: poll the job while it is alive (the runner on the student's machine reports progress to the server)
   React.useEffect(() => {
     if (!job || ['done', 'failed', 'cancelled', 'expired'].includes(job.status)) return;
@@ -149,21 +162,27 @@ export default function App() {
   // blur the galaxy behind content screens; keep it crisp on the hero and during the interview
   React.useEffect(() => {
     if (!window.Scene) return;
-    const px = view === 'replies' || view === 'browse' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' || step === 'job' ? 12 : 0;
+    const px = view === 'replies' || view === 'browse' || view === 'profile' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' || step === 'job' ? 12 : 0;
     Scene.setBlur(px);
   }, [view, step, orgs.length]);
 
   const start = () => run(async () => {
     if (!qs.length) setQs(await api('/api/questions'));
+    if (hasSaved && !Object.keys(answers).length) setAnswers(saved);  // returning student: answers pre-filled, just confirm
     setQi(0); setStep('interview'); stage3d('explore');
   });
+  const runMatch = async (a) => {
+    const m = await api('/api/match', a);
+    const r = m.ranking;
+    setRanking(r); setOthers(m.others || []); setCatSize(m.catalogue_size || 0); setFound(null); setDiscError(''); setStep('matches');
+    stage3d('ranked', { focus: r.map((x) => x.org), scores: Object.fromEntries(r.map((x) => [x.org, x.total])) });
+  };
+  const useSaved = () => run(async () => { setAnswers(saved); setView('mentor'); await runMatch(saved); });
   const next = () => {
     if (qi < qs.length - 1) return setQi(qi + 1);
     run(async () => {
-      const m = await api('/api/match', answers);
-      const r = m.ranking;
-      setRanking(r); setOthers(m.others || []); setCatSize(m.catalogue_size || 0); setFound(null); setDiscError(''); setStep('matches');
-      stage3d('ranked', { focus: r.map((x) => x.org), scores: Object.fromEntries(r.map((x) => [x.org, x.total])) });
+      await runMatch(answers);
+      try { setProfile(await api('/api/profile', null, 'PUT', { answers })); } catch {}  // remember the finished quiz for next time
     });
   };
   const back3d = () => stage3d('ranked', { focus: ranking.map((x) => x.org), scores: Object.fromEntries(ranking.map((x) => [x.org, x.total])) });
@@ -208,6 +227,21 @@ export default function App() {
   });
   const switchToLearn = () => run(async () => { setAnswers((a) => ({ ...a, mode: 'learn' })); await openTour(issue); });
 
+  const saveProfile = (payload) => run(async () => {
+    setProfErr(''); setProfNote('');
+    try { const p = await api('/api/profile', null, 'PUT', payload); setProfile((cur) => ({ ...cur, ...p })); await loadProfile(); setProfNote('Profile saved.'); }
+    catch (e) { if (e.login) throw e; setProfErr(e.message); }
+  });
+  const deleteMyData = () => run(async () => {
+    setProfErr('');
+    try {
+      await api('/api/profile', null, 'DELETE');
+      setProfile(null); setAnswers({}); setRanking([]); setJob(null); setIssue(null); setStep('hero'); stage3d('explore');
+      if (me.hosted) setMe({ hosted: true, login: null }); else { setView('mentor'); await loadProfile(); }
+    } catch (e) { if (e.login) throw e; setProfErr(e.message); }
+  });
+  const logout = async () => { try { await fetch('/auth/logout', { method: 'POST' }); } catch {} setMe({ hosted: true, login: null }); setProfile(null); reset(); };
+  const useProfile = () => { setView('mentor'); useSaved(); };
   const createJob = ({ consent, signoff }) => run(async () => {
     setJobErr('');
     try {
@@ -260,11 +294,12 @@ export default function App() {
               {pill}
             </span>
           )}
-          {me.hosted && me.login && (
-            <span className="flex items-center gap-2 text-sm font-bold text-zinc-200">
-              {me.avatar && <img src={me.avatar} alt="" className="h-7 w-7 rounded-full" />}@{me.login}
-              <button onClick={async () => { await fetch('/auth/logout', { method: 'POST' }); setMe({ hosted: true, login: null }); reset(); }} className="rounded-full border border-white/20 px-3 py-1 text-xs font-bold hover:border-white/50">Log out</button>
-            </span>
+          {(me.login || !me.hosted) && (
+            <button onClick={() => setView('profile')} aria-label="Your profile" aria-current={view === 'profile' ? 'page' : undefined}
+              className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm font-bold transition ${view === 'profile' ? 'border-sky-300 bg-sky-300/15 text-white' : 'border-white/15 text-zinc-200 hover:border-white/40'}`}>
+              {me.avatar ? <img src={me.avatar} alt="" className="h-7 w-7 rounded-full" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs font-black">{(me.login || '?')[0].toUpperCase()}</span>}
+              <span className="hidden max-w-[10rem] truncate sm:inline">@{me.login || 'local'}</span>
+            </button>
           )}
         </div>
       </header>
@@ -279,7 +314,11 @@ export default function App() {
       )}
 
       <main>
-        {view === 'browse' ? (
+        {view === 'profile' ? (
+          needsLogin ? <HeroSection onLogin={() => (location.href = '/auth/login')} orgCount={(catStatus && catStatus.size) || orgs.length || 14} /> :
+          <ProfilePage profile={profile} questions={qs} busy={busy} error={profErr} notice={profNote} onSave={saveProfile} onUse={useProfile}
+            onExport={() => { window.location.href = '/api/profile/export'; }} onDelete={deleteMyData} onLogout={logout} />
+        ) : view === 'browse' ? (
           <BrowseCatalogue data={bData} filters={bFilters} onFilters={(p) => setBFilters((f) => ({ ...f, ...p }))} loading={bLoading} status={catStatus} busy={busy}
             onChoose={(o) => { setView('mentor'); scoutOrg({ org: o.name, github: o.github }, o.repo); }} />
         ) : view === 'replies' ? (
@@ -287,7 +326,7 @@ export default function App() {
           <RepliesInbox prUrl={prUrl} onPrUrl={setPrUrl} onCheck={checkPr} drafts={drafts ? drafts.drafts : null}
             aiFlags={drafts ? drafts.ai_flags || [] : []} canPost={!!(drafts && drafts.can_post)} notice={notice} busy={busy} onSend={sendReply} />
         ) : step === 'hero' || needsLogin ? (
-          <HeroSection onStart={start} onLogin={needsLogin ? () => (location.href = '/auth/login') : null} orgCount={(catStatus && catStatus.size) || orgs.length || 14} />
+          <HeroSection onStart={start} onUseSaved={hasSaved && !needsLogin ? useSaved : null} savedSummary={summary} onLogin={needsLogin ? () => (location.href = '/auth/login') : null} orgCount={(catStatus && catStatus.size) || orgs.length || 14} />
         ) : step === 'interview' && q ? (
           <InterviewStep key={q.id} q={q.q} options={q.options} multi={q.multi} index={qi} total={qs.length}
             value={answers[q.id] ?? (q.multi ? [] : '')} fitCount={qi >= 1 ? fitCount : null}
@@ -304,7 +343,7 @@ export default function App() {
             onPick={pickIssue} onRecheck={recheck} onTry={(a) => scoutOrg(a)}
             onBack={() => { setStep('matches'); back3d(); }} />
         ) : step === 'job' && issue ? (
-          <FullAutoJob issue={issue} job={job} command={jobCmd} error={jobErr} busy={busy} onCreate={createJob} onApprove={approveJob} onCancel={cancelJob}
+          <FullAutoJob defaultSignoff={!!(profile && profile.settings && profile.settings.signoff_default)} issue={issue} job={job} command={jobCmd} error={jobErr} busy={busy} onCreate={createJob} onApprove={approveJob} onCancel={cancelJob}
             onBack={() => { setStep('issues'); }} onLearn={switchToLearn} />
         ) : step === 'work' && issue ? (
           answers.mode === 'full' ? (
