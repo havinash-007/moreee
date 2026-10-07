@@ -3,14 +3,25 @@ import os
 
 import anthropic
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, config, llm, matcher, replier
+from . import agents, auth, config, llm, matcher, replier
 
 app = FastAPI(title="oss-mentor")
+app.include_router(auth.router)
+
+
+@app.middleware("http")
+async def same_origin_posts(request: Request, call_next):
+    """CSRF guard for cookie auth: state-changing requests must come from our own origin."""
+    if request.method == "POST" and auth.hosted():
+        origin = request.headers.get("origin", "")
+        if origin and origin.rstrip("/") != config.BASE_URL:
+            return JSONResponse({"error": "Cross-origin request blocked."}, status_code=403)
+    return await call_next(request)
 
 QUESTIONS = [
     {"id": "mode", "q": "How do you want to work?", "multi": False, "options": [
@@ -110,8 +121,8 @@ async def _perm(_, e):
 
 @app.get("/api/health")
 def health():
-    return {"anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY")), "github_token": bool(config.GITHUB_TOKEN),
-            "posting_enabled": config.AUTO_POST_REPLIES, "models": {"cheap": config.MODEL_CHEAP, "smart": config.MODEL_SMART},
+    return {"anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY")), "github_token": bool(config.GITHUB_TOKEN) or auth.hosted(),
+            "posting_enabled": config.AUTO_POST_REPLIES, "hosted": auth.hosted(), "models": {"cheap": config.MODEL_CHEAP, "smart": config.MODEL_SMART},
             "session_budget_usd": config.SESSION_BUDGET_USD}
 
 
@@ -121,43 +132,43 @@ def questions():
 
 
 @app.post("/api/match")
-def match(p: Profile):
+def match(p: Profile, user: auth.User = Depends(auth.require_user)):
     return {"ranking": matcher.rank(p.model_dump(), top=3), "cost_usd": 0.0}
 
 
 @app.post("/api/scout")
-def scout(r: ScoutReq):
-    return agents.scout(r.org, r.profile.model_dump(), r.session)
+def scout(r: ScoutReq, user: auth.User = Depends(auth.require_user)):
+    return agents.scout(r.org, r.profile.model_dump(), user.login)
 
 
 @app.post("/api/tour")
-def tour(r: TourReq):
-    return agents.tour(r.repo, r.issue_title, r.level, r.session)
+def tour(r: TourReq, user: auth.User = Depends(auth.require_user)):
+    return agents.tour(r.repo, r.issue_title, r.level, user.login)
 
 
 @app.post("/api/coach")
-def coach(r: CoachReq):
+def coach(r: CoachReq, user: auth.User = Depends(auth.require_user)):
     if r.mode not in ("learn", "semi"):
         raise HTTPException(400, "Coach chat is for learn and semi modes.")
-    return agents.coach(r.mode, r.context, r.history, r.session)
+    return agents.coach(r.mode, r.context, r.history, user.login)
 
 
 @app.post("/api/replies/draft")
-def replies_draft(r: DraftReq):
+def replies_draft(r: DraftReq, user: auth.User = Depends(auth.require_user)):
     try:
-        return replier.draft(r.pr_url, r.session)
+        return replier.draft(r.pr_url, user.login)
     except ValueError:
         raise HTTPException(400, "That does not look like a pull request URL.")
 
 
 @app.post("/api/replies/send")
-def replies_send(r: SendReq):
-    return replier.send(r.pr_url, r.items, r.disclose)
+def replies_send(r: SendReq, user: auth.User = Depends(auth.require_user)):
+    return replier.send(r.pr_url, r.items, r.disclose, user.login)
 
 
 @app.get("/api/usage")
-def usage(session: str = "default"):
-    return {"session": llm.ledger.session(session).as_dict(), "total": llm.ledger.total.as_dict(),
+def usage(user: auth.User = Depends(auth.require_user)):
+    return {"session": llm.ledger.session(user.login).as_dict(), "total": llm.ledger.total.as_dict(),
             "session_budget_usd": config.SESSION_BUDGET_USD}
 
 

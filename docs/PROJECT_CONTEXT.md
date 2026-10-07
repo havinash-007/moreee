@@ -47,6 +47,15 @@ Claude Code flow (`/oss-mentor`, `.claude/skills/`, `agents/*.md`) is the termin
 7. **Budgets.** Per-session and global USD caps checked before each call using a worst-case estimate, charged from real `usage`. Over budget returns HTTP 402 and the UI shows it. The UI header shows live spend.
 Rough per-step cost from the price table (estimates, verify with `/api/usage`): scout about $0.01, repo tour about $0.02, each coach turn about $0.01, reply check about $0.02. A full first-issue session should land well under the default $0.50 cap.
 
+## Accounts and GitHub auth
+Students connect their own GitHub (OAuth). Scopes: `public_repo` and `read:user`. Their token stays on the server and is never sent to the browser.
+- Reads (issues, policies, PR comments) and any reply run under the student's own token, never the operator's. In hosted mode the server refuses to fall back to a local `gh` login.
+- Budgets, usage and the GitHub read cache are per student.
+- A student can only draft or send replies on pull requests they authored.
+- Cookie is HttpOnly, SameSite=Lax, Secure on https; POSTs from another origin are rejected.
+- Setup (operator): create a GitHub OAuth App, set callback `BASE_URL/auth/callback`, put `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `BASE_URL` in `.env`. Without a client id the app runs in single-user local mode.
+- Limit: sessions are held in memory, so a restart logs everyone out. Use a database or Redis before real traffic.
+
 ## Safety and policy decisions (important)
 - **The student does their own legal sign-offs.** DCO and CLA are never signed by an agent.
 - **Policy scan before recommending.** `github.policy_scan` reads AI_POLICY/AGENTS/CONTRIBUTING and flags AI restrictions. It is a keyword scan, so a hit means "a human must read this", not a verdict. If GitHub cannot be read (rate limit, outage) the error propagates; it must never look like "no restriction".
@@ -55,18 +64,18 @@ Rough per-step cost from the price table (estimates, verify with `/api/usage`): 
 - **Secrets** live in `.env` (gitignored). The API key is never sent to the browser.
 
 ## What is built vs not built
-Built: question flow, matcher, scout, repo tour, coach chat, reply drafting and gated send, usage meter and budgets, Claude Code skill, 14 backend tests.
-Not built yet: Full-auto workers inside the web app (they run in Claude Code), user accounts and multi-tenant isolation, a persistent database (state is in `data/` files), streaming responses, background polling of PRs for new comments, a hackathon team mode.
+Built: question flow, matcher, scout, repo tour, coach chat, reply drafting and gated send, usage meter and budgets, Claude Code skill, 22 backend tests.
+Not built yet: Full-auto workers inside the web app (they run in Claude Code), persistent sessions and a database, rate limiting per user (state is in `data/` files), streaming responses, background polling of PRs for new comments, a hackathon team mode.
 
 ## Known limits
 - `mentor/orgs.json` ratings and `legal` fields are judgement and may be wrong; always verify live.
 - Unauthenticated GitHub allows 60 requests/hour; use a token.
-- The UI has been syntax-checked and the API smoke-tested, but not yet visually reviewed in a browser or run end-to-end with a real Anthropic key.
+- The OAuth flow has been unit-tested with fake sessions but not run against a real GitHub OAuth App. The UI has been syntax-checked and the API smoke-tested, but not yet visually reviewed in a browser or run end-to-end with a real Anthropic key.
 - Sonnet/Haiku model IDs and prices are hard-coded defaults; check `backend/config.py` when models change.
 
 ## Open questions for the team
 1. Do we allow auto-posting at all, or keep reply drafting permanently manual?
-2. Hosted multi-user app (needs auth, per-user budgets, a database) or local tool per student?
+2. Hosting: decided as hosted multi-user with GitHub login. Where do we deploy, and who pays the shared API key?
 3. Which hackathon format are we targeting first, and does it count contributions to existing projects?
 4. Should the org catalogue be curated by us or discovered from GitHub/GSoC lists?
 

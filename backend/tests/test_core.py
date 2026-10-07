@@ -154,3 +154,93 @@ def test_missing_file_is_none(monkeypatch):
 
     monkeypatch.setattr(github, "get", nf)
     assert github.raw_file("o", "r", "AI_POLICY.md") is None
+
+
+# ---- multi-user auth
+def _hosted(monkeypatch):
+    from backend import auth
+    monkeypatch.setattr(config, "GITHUB_CLIENT_ID", "id")
+    monkeypatch.setattr(config, "GITHUB_CLIENT_SECRET", "secret")
+    monkeypatch.setattr(config, "BASE_URL", "http://testserver")
+    auth.SESSIONS.clear()
+    auth.SESSIONS["sidA"] = auth.User(login="alice", token="tokA")
+    auth.SESSIONS["sidB"] = auth.User(login="bob", token="tokB")
+    from fastapi.testclient import TestClient
+    from backend.app import app
+    return TestClient(app), auth
+
+
+MATCH = {"languages": ["Python"], "interests": ["web"]}
+
+
+def test_hosted_requires_login(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    assert c.post("/api/match", json=MATCH).status_code == 401
+    assert c.get("/api/usage").status_code == 401
+    assert c.get("/api/health").status_code == 200  # public
+
+
+def test_hosted_logged_in_ok(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    r = c.post("/api/match", json=MATCH, cookies={"oss_session": "sidA"})
+    assert r.status_code == 200 and r.json()["ranking"]
+    assert c.get("/api/me", cookies={"oss_session": "sidA"}).json()["login"] == "alice"
+
+
+def test_cross_origin_post_blocked(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    r = c.post("/api/match", json=MATCH, cookies={"oss_session": "sidA"}, headers={"origin": "https://evil.example"})
+    assert r.status_code == 403
+
+
+def test_usage_is_per_user(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    monkeypatch.setattr(llm, "ledger", llm.Ledger())
+    llm.ledger.session("alice").cost_usd = 0.2
+    a = c.get("/api/usage", cookies={"oss_session": "sidA"}).json()["session"]["cost_usd"]
+    b = c.get("/api/usage", cookies={"oss_session": "sidB"}).json()["session"]["cost_usd"]
+    assert (a, b) == (0.2, 0)
+
+
+def test_cannot_draft_for_someone_elses_pr(monkeypatch):
+    _hosted(monkeypatch)
+    monkeypatch.setattr(replier.github, "get", lambda path, params=None, token=None: {"user": {"login": "carol"}, "title": "t"})
+    with pytest.raises(PermissionError):
+        replier.fetch_new_comments("o", "r", 1, "alice")
+
+
+def test_github_cache_not_shared_between_tokens(monkeypatch):
+    import httpx
+    from backend import auth, github
+    github._cache.clear()
+    calls = []
+
+    class R:
+        def __init__(self, tok): self.tok = tok
+        def raise_for_status(self): pass
+        def json(self): return {"seen_by": self.tok}
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        calls.append(headers.get("Authorization"))
+        return R(headers.get("Authorization"))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    auth.current_token.set("tokA"); a = github.get("/repos/o/private")
+    auth.current_token.set("tokB"); b = github.get("/repos/o/private")
+    assert a != b and len(calls) == 2
+
+
+def test_hosted_never_uses_operator_gh_login(monkeypatch):
+    monkeypatch.setenv("GITHUB_CLIENT_ID", "x")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr(config, "GITHUB_CLIENT_ID", "x")
+    assert config._github_token() == ""
+
+
+def test_token_reaches_endpoint_thread(monkeypatch):
+    c, auth = _hosted(monkeypatch)
+    from backend import agents
+    seen = {}
+    monkeypatch.setattr(agents, "scout", lambda org, profile, sid: seen.update(tok=auth.current_token.get(), sid=sid) or {"picks": []})
+    r = c.post("/api/scout", json={"org": "zulip", "profile": {}}, cookies={"oss_session": "sidB"})
+    assert r.status_code == 200 and seen == {"tok": "tokB", "sid": "bob"}

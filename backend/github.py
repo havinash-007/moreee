@@ -1,9 +1,10 @@
 """Thin GitHub REST client. Reads are cheap and cached briefly; writes require an explicit token."""
+import hashlib
 import time
 
 import httpx
 
-from . import config
+from . import auth, config
 
 API = "https://api.github.com"
 _cache: dict[str, tuple[float, object]] = {}
@@ -12,14 +13,15 @@ TTL = 300
 
 def _headers(token: str | None = None) -> dict:
     h = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
-    t = token or config.GITHUB_TOKEN
+    t = token or auth.current_token.get() or config.GITHUB_TOKEN
     if t:
         h["Authorization"] = f"Bearer {t}"
     return h
 
 
 def get(path: str, params: dict | None = None, token: str | None = None):
-    key = f"{path}?{sorted((params or {}).items())}"
+    who = hashlib.sha256((token or auth.current_token.get() or "").encode()).hexdigest()[:12]
+    key = f"{who}:{path}?{sorted((params or {}).items())}"  # never share cached reads between users
     hit = _cache.get(key)
     if hit and time.time() - hit[0] < TTL:
         return hit[1]

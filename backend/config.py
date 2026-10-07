@@ -25,11 +25,18 @@ DEFAULT_PRICE = (4.0, 20.0)  # unknown model: assume the expensive tier
 SESSION_BUDGET_USD = float(os.getenv("SESSION_BUDGET_USD", "0.50"))
 GLOBAL_BUDGET_USD = float(os.getenv("GLOBAL_BUDGET_USD", "10.00"))
 
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000").rstrip("/")
+
+
 def _github_token() -> str:
     """Env var first; otherwise reuse the local `gh` login for read access (60 req/h unauthenticated is too low)."""
     t = os.getenv("GITHUB_TOKEN", "")
     if t:
         return t
+    if GITHUB_CLIENT_ID:
+        return ""  # hosted mode: never fall back to the operator's identity
     try:
         return subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=5).stdout.strip()
     except (OSError, subprocess.SubprocessError):

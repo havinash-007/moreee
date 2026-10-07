@@ -62,6 +62,7 @@ textarea{min-height:80px;resize:vertical}
     <button class="tab" role="tab" id="tab-replies" aria-selected="false">PR replies</button>
   </div>
   <span class="spacer"></span>
+  <div class="meter" id="who" style="display:none"></div>
   <div class="meter" title="Spend this session vs. budget"><span id="spend">$0.000</span><div class="track"><div class="fill" id="fill"></div></div><span id="cap"></span></div>
 </div></header>
 <main id="app"></main>
@@ -71,11 +72,12 @@ const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const md=t=>DOMPurify.sanitize(marked.parse(t||''));
 let SID; try{SID=localStorage.getItem('sid')||crypto.randomUUID();localStorage.setItem('sid',SID)}catch{SID=crypto.randomUUID()}
-const S={view:'mentor',step:0,questions:[],answers:{},ranking:null,org:null,scout:null,issue:null,tour:null,history:[],health:{},busy:false,error:'',drafts:null,prUrl:''};
+const S={me:{hosted:false,login:'local'},view:'mentor',step:0,questions:[],answers:{},ranking:null,org:null,scout:null,issue:null,tour:null,history:[],health:{},busy:false,error:'',drafts:null,prUrl:''};
 
 async function api(path,body){
   const r=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});
   const j=await r.json().catch(()=>({error:'Bad response from server'}));
+  if(r.status===401){S.me={hosted:true,login:null};render()}
   if(!r.ok) throw new Error(j.error||j.detail||('HTTP '+r.status));
   return j;
 }
@@ -91,6 +93,9 @@ const errBox=()=>S.error?`<div class="err" role="alert">${esc(S.error)}</div>`:'
 function render(){
   const app=$('#app');
   $('#tab-mentor').setAttribute('aria-selected',S.view==='mentor');$('#tab-replies').setAttribute('aria-selected',S.view==='replies');
+  const who=$('#who');
+  if(S.me.hosted&&S.me.login){who.style.display='flex';who.innerHTML=`${S.me.avatar?`<img src="${esc(S.me.avatar)}" alt="" width="22" height="22" style="border-radius:50%">`:''}@${esc(S.me.login)} <button class="ghost small" id="logout" style="padding:2px 8px">Log out</button>`;$('#logout').onclick=async()=>{await fetch('/auth/logout',{method:'POST'});S.me={hosted:true,login:null};Object.assign(S,{step:0,answers:{},ranking:null,scout:null,tour:null,history:[],drafts:null});render()}}else who.style.display='none';
+  if(S.me.hosted&&!S.me.login){app.innerHTML=`<div class="card"><h1>Connect your GitHub</h1><p class="mute">Sign in with GitHub so the mentor can read public repositories and issues as you, and, only if you choose, help you reply to reviewers on your own pull requests.</p><p class="small mute">We ask for <code>public_repo</code> and <code>read:user</code>. Your token stays on the server, is never shown in the browser, and every reply needs your explicit approval.</p><a href="/auth/login"><button class="primary">Continue with GitHub</button></a></div>`;return}
   let h='';
   if(!S.health.anthropic_key) h+=`<div class="err">No Anthropic API key found on the server. Copy <code>.env.example</code> to <code>.env</code>, add <code>ANTHROPIC_API_KEY</code>, restart. Matching still works without it.</div>`;
   h+=errBox();
@@ -194,7 +199,7 @@ async function act(a,el){
 }
 $('#tab-mentor').onclick=()=>{S.view='mentor';render()};
 $('#tab-replies').onclick=()=>{S.view='replies';render()};
-(async()=>{try{S.health=await api('/api/health')}catch{}render();refreshUsage()})();
+(async()=>{try{S.health=await api('/api/health')}catch{}try{S.me=await api('/api/me')}catch{}render();if(!S.me.hosted||S.me.login)refreshUsage()})();
 </script>
 </body>
 </html>

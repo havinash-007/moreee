@@ -8,7 +8,7 @@ Nothing is posted unless the operator set AUTO_POST_REPLIES=true AND the caller 
 """
 import json
 
-from . import config, github, llm
+from . import auth, config, github, llm
 
 STATE = config.DATA / "replies.json"
 
@@ -38,9 +38,11 @@ def parse_pr(url: str) -> tuple[str, str, int]:
     return parts[i - 2], parts[i - 1], int(parts[i + 1])
 
 
-def fetch_new_comments(owner: str, repo: str, number: int) -> tuple[list[dict], str]:
+def fetch_new_comments(owner: str, repo: str, number: int, me: str) -> tuple[list[dict], str]:
     pr = github.get(f"/repos/{owner}/{repo}/pulls/{number}")
     author = pr["user"]["login"]
+    if me != "local" and author.lower() != me.lower():
+        raise PermissionError(f"This PR belongs to @{author}. You can only draft replies for your own pull requests.")
     state = _load().get(f"{owner}/{repo}#{number}", {})
     seen = set(state.get("handled", []))
     comments = []
@@ -60,7 +62,7 @@ def _ai_flags(owner: str, repo: str) -> list[dict]:
 
 def draft(pr_url: str, session_id: str) -> dict:
     owner, repo, number = parse_pr(pr_url)
-    fresh, title = fetch_new_comments(owner, repo, number)
+    fresh, title = fetch_new_comments(owner, repo, number, session_id)
     if not fresh:
         return {"drafts": [], "note": "No new comments to answer.", "cost_usd": 0.0}
     cost = 0.0
@@ -88,16 +90,20 @@ def draft(pr_url: str, session_id: str) -> dict:
     _save(state)
     flags = _ai_flags(owner, repo)
     return {"drafts": out, "pr": {"owner": owner, "repo": repo, "number": number}, "ai_flags": flags,
-            "can_post": config.AUTO_POST_REPLIES and bool(config.GITHUB_TOKEN) and not flags, "cost_usd": cost}
+            "can_post": config.AUTO_POST_REPLIES and bool(auth.current_token.get() or config.GITHUB_TOKEN) and not flags, "cost_usd": cost}
 
 
-def send(pr_url: str, items: list[dict], disclose: bool = True) -> dict:
+def send(pr_url: str, items: list[dict], disclose: bool = True, me: str = "local") -> dict:
     """items: [{id, source, reply}] with the (possibly edited) text the human approved."""
     if not config.AUTO_POST_REPLIES:
         raise PermissionError("Posting is disabled. Set AUTO_POST_REPLIES=true on the server to enable it.")
-    if not config.GITHUB_TOKEN:
-        raise PermissionError("GITHUB_TOKEN is not set.")
+    if not (auth.current_token.get() or config.GITHUB_TOKEN):
+        raise PermissionError("No GitHub token. Connect your GitHub account.")
     owner, repo, number = parse_pr(pr_url)
+    if me != "local":
+        author = github.get(f"/repos/{owner}/{repo}/pulls/{number}")["user"]["login"]
+        if author.lower() != me.lower():
+            raise PermissionError(f"This PR belongs to @{author}. You can only reply on your own pull requests.")
     if _ai_flags(owner, repo):
         raise PermissionError("This project's policy restricts AI-generated messages. Copy the draft, rewrite it in your own words, and post it yourself.")
     state = _load()
