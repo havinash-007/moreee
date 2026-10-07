@@ -1,0 +1,174 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>OSS Contribution Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: score strip on top, PR ledger, agent lanes, then audit trail. Scanned, not read. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#14202b; --muted:#5c6b78; --line:#dbe1e7;
+  --accent:#0b6e8a; --accent-soft:#dff0f5;
+  --good:#1f7a4d; --good-soft:#dcf2e5; --warn:#a15c00; --warn-soft:#fbecd0; --bad:#b3261e; --bad-soft:#f9dedc; --idle:#5c6b78; --idle-soft:#e8ecf0;
+  --display:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f161d; --surface:#17212b; --ink:#e6edf3; --muted:#93a3b1; --line:#27333f;
+  --accent:#5cc3de; --accent-soft:#173844;
+  --good:#5fd394; --good-soft:#15352a; --warn:#f0b255; --warn-soft:#3a2d12; --bad:#ff8b82; --bad-soft:#40201e; --idle:#93a3b1; --idle-soft:#202c37;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161d; --surface:#17212b; --ink:#e6edf3; --muted:#93a3b1; --line:#27333f;
+  --accent:#5cc3de; --accent-soft:#173844;
+  --good:#5fd394; --good-soft:#15352a; --warn:#f0b255; --warn-soft:#3a2d12; --bad:#ff8b82; --bad-soft:#40201e; --idle:#93a3b1; --idle-soft:#202c37;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--display);font-size:15px;line-height:1.5;padding-inline:max(16px,4vw);padding-block:28px 56px}
+.wrap{max-width:1040px;margin-inline:auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+h1{font-size:1.7rem;line-height:1.15;margin:0;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0}
+.stamp{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+h2{font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.stat b{display:block;font-family:var(--mono);font-size:1.9rem;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.85rem}
+.stat.score b{color:var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.open{background:var(--warn-soft);color:var(--warn)} .merged{background:var(--good-soft);color:var(--good)}
+.closed{background:var(--bad-soft);color:var(--bad)} .run{background:var(--accent-soft);color:var(--accent)} .none{background:var(--idle-soft);color:var(--idle)}
+.table{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:620px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--accent);text-underline-offset:2px} a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-size:.86rem}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.lane h3{margin:0;font-size:.98rem}
+.lane p{margin:0;color:var(--muted);font-size:.86rem}
+.audit{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.row{display:grid;grid-template-columns:minmax(140px,200px) 1fr auto;gap:6px 16px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:start}
+.row:last-child{border-bottom:0}
+.row .r{font-family:var(--mono);font-size:.84rem;overflow-wrap:anywhere}
+.row .why{min-width:0;color:var(--ink)}
+@media (max-width:560px){.row{grid-template-columns:1fr}}
+.rules{margin:0;padding-left:1.1rem;color:var(--ink);display:flex;flex-direction:column;gap:4px}
+.note{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:.9rem}
+</style>
+<div class="wrap">
+<header>
+  <div>
+    <h1>OSS Contribution Board</h1>
+    <p class="sub">havinash-007 · fix, test, open a PR, check back every 5 hours</p>
+  </div>
+  <div class="stamp">Updated 7 Oct 2026, 12:10 IST · focus now Linux Foundation and GSoC orgs · next PR check about 20:17 IST</div>
+</header>
+
+<section>
+  <h2>Scoreboard</h2>
+  <div class="strip">
+    <div class="stat score"><b>0</b><span>Score (merged +1, rejected −1)</span></div>
+    <div class="stat"><b>12</b><span>PRs submitted</span></div>
+    <div class="stat"><b>0</b><span>Merged</span></div>
+    <div class="stat"><b>0</b><span>Rejected</span></div>
+    <div class="stat"><b>0</b><span>Agents working</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Pull requests</h2>
+  <div class="table"><table>
+    <thead><tr><th>PR</th><th>Repo</th><th>Change</th><th>Status</th><th class="num">Score</th></tr></thead>
+    <tbody>
+      <tr><td class="mono"><a href="https://github.com/sktime/skpro/pull/1200">#1200</a></td><td class="mono">sktime/skpro</td>
+        <td>Fix <span class="mono">_approx_derivative</span> missing division by step size. The cdf-derived <span class="mono">pdf</span> was 10 million times too small. Two regression tests fail before and pass after. Issue <a href="https://github.com/sktime/skpro/issues/1199">#1199</a>.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/Kludex/starlette/pull/3643">#3643</a></td><td class="mono">Kludex/starlette</td>
+        <td>Keep a leading <span class="mono">//</span> path out of the URL authority when an ASGI scope has no host. Closes an open-redirect path (issue #3579). Test fails on main, passes with the fix. Full suite, ruff and mypy clean.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/The-PR-Agent/pr-agent/pull/3966">#3966</a></td><td class="mono">The-PR-Agent/pr-agent</td>
+        <td>Fix <span class="mono">extend_patch</span> for zero-length (<span class="mono">-U0</span>) hunks: extra context was taken one line off and headers did not match bodies. 4 new tests fail on main, pass with the fix. 45 lines added.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/useblocks/sphinx-needs/pull/2103">#2103</a></td><td class="mono">useblocks/sphinx-needs</td>
+        <td>An unregistered <span class='mono'>needservice</span> now logs a Sphinx warning instead of crashing with a traceback. Closes #2101. Lint passes; 3 service tests pass.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/useblocks/sphinx-needs/pull/2104">#2104</a></td><td class="mono">useblocks/sphinx-needs</td>
+        <td><span class='mono'>test-report</span> content is inserted as text instead of a list repr. Closes #2051. 151 package tests and all lint hooks pass.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/vitejs/vite-plugin-vue/pull/856">#856</a></td><td class="mono">vitejs/vite-plugin-vue</td>
+        <td>SFC <span class='mono'>&lt;script lang=ts&gt;</span> now respects Vite's <span class='mono'>tsconfig</span> option. Closes #852. Test fails without the fix, passes with it.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/useblocks/sphinx-needs/pull/2105">#2105</a></td><td class="mono">useblocks/sphinx-needs</td>
+        <td><span class='mono'>tr_link</span> no longer crashes on needs whose option is None. Closes #1949. 151 tests and lint pass. PR notes that the documented usage alone did not reproduce.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/paupino/rust-decimal/pull/869">#869</a></td><td class="mono">paupino/rust-decimal</td>
+        <td>Deserialize 128-bit integers into <span class='mono'>Decimal</span> via <span class='mono'>visit_i128</span> and <span class='mono'>visit_u128</span>. Closes #855. Test fails before, passes after; fmt and clippy clean.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/paupino/rust-decimal/pull/870">#870</a></td><td class="mono">paupino/rust-decimal</td>
+        <td><span class="mono">sqrt</span>, <span class="mono">ln</span> and <span class="mono">log10</span> of negative zero now treat it as zero, matching <span class="mono">f64</span>. Closes #850. 3 tests fail before, pass after; fmt and clippy clean.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/genshinsim/gcsim/pull/3206">#3206</a></td><td class="mono">genshinsim/gcsim</td>
+        <td>Auto-sample starts on the first partial result instead of waiting for the whole run, and stale sample responses are dropped. Closes #3192. Typecheck and new tests pass; not tested in a browser, and the PR says so.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/Rel1cx/eslint-react/pull/2010">#2010</a></td><td class="mono">Rel1cx/eslint-react</td>
+        <td><span class="mono">set-state-in-effect</span> no longer flags DOM nodes held in <span class="mono">useState</span> and set by a callback ref. Real violations are still reported (tests added). Closes #2000. 2807 plugin tests pass; GitHub Actions not started yet.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+      <tr><td class="mono"><a href="https://github.com/oras-project/oras/pull/2227">#2227</a></td><td class="mono">oras-project/oras (CNCF)</td>
+        <td><span class="mono">fetch-config --output</span> now works with /dev/stdout, FIFOs and devices, keeps file modes and respects umask, and no longer replaces symlinks. Closes #2224 and #2226. DCO signed. Tests, vet and gofmt pass; golangci-lint and macOS/Windows not run, and the PR says so.</td>
+        <td><span class="pill open">Open, awaiting review</span></td><td class="num">0</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Agents</h2>
+  <div class="lanes">
+    <div class="lane"><h3>Data and ML libraries</h3><p>Every real bug already had a PR or claim.</p><span class="pill none">Done, no PR</span></div>
+    <div class="lane"><h3>Developer tooling</h3><p>Opened starlette#3643 and fixed a reviewer's valid point.</p><span class="pill merged">Done, 1 PR</span></div>
+    <div class="lane"><h3>AI and LLM tooling</h3><p>Opened pr-agent#3966. litellm, smolagents, langchain need a CLA or pre-approved issue.</p><span class="pill merged">Done, 1 PR</span></div>
+    <div class="lane"><h3>Scientific and geo</h3><p>Found a real scikit-image bug, but the project bans AI-written PRs. Not submitted.</p><span class="pill none">Done, no PR</span></div>
+    <div class="lane"><h3>Web and backend</h3><p>Opened vite-plugin-vue#856 after GitHub's fork rate limit cleared.</p><span class="pill merged">Done, 1 PR</span></div>
+    <div class="lane"><h3>Open Food Facts (2 agents)</h3><p>#1651, #1660 and #1416 all had claimants. Skipped.</p><span class="pill none">Done, no PR</span></div>
+    <div class="lane"><h3>rust-decimal</h3><p>PRs #869 and #870 opened. Both claimed on the issue first, as CONTRIBUTING asks.</p><span class="pill merged">Done, 2 PRs</span></div>
+    <div class="lane"><h3>sphinx-needs</h3><p>PRs #2103, #2104 and #2105 opened. Median outsider merge about 6 hours.</p><span class="pill merged">Done, 3 PRs</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>What was checked and why it was skipped</h2>
+  <div class="audit">
+    <div class="row"><div class="r">sktime/sktime bugs</div><div class="why">47 open bug issues checked. Every real one already had an open PR or a claim. #10281 is a design question, not a fix.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">GMAE returns 0.0</div><div class="why">Real bug (docs expect 0.00053). Three open PRs already.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">make_mock_estimator</div><div class="why">Crashes on Python 3.14. Reported today as #11361 with fix PR #11362.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">pr-agent, doorstop, rai-toolkit</div><div class="why">Open good-first-issues all had PRs from other people.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">django-modern-rest #1712</div><div class="why">Repo's AI policy forbids autonomous agent PRs and requires human-written PR text. Not submitted. An earlier scout report missed this policy.</div><span class="pill none">Not submitted</span></div>
+    <div class="row"><div class="r">opendal, gravitino, kargo, openinference</div><div class="why">Held for you: human review of PR text, DCO sign-off with your legal name, or a CLA signature are required.</div><span class="pill open">Needs you</span></div>
+    <div class="row"><div class="r">scikit-image max_tree</div><div class="why">Real bug: wrong or crashing results when an axis is shorter than 3. Project bans AI-written PRs, so it was not submitted.</div><span class="pill none">Not submitted</span></div>
+    <div class="row"><div class="r">Open Food Facts explorer #1651, #1660, #1416</div><div class="why">Each already had a contributor claim. Project also requires claiming first and disclosing the AI model.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">litellm, smolagents, langchain, networkx</div><div class="why">CLA, pre-approved issue, or AI-contribution ban required.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">pallets, packaging, attrs, typer, pydantic-settings</div><div class="why">Agent 2 skipped them: AI contributions banned or restricted, every bug already had a PR, or only environment-specific failures.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">imbalanced-learn, category_encoders, torchmetrics, hdbscan, xarray, statsmodels, dask, pandas</div><div class="why">Agent 1 scanned open bugs. All had open PRs or claims, or did not reproduce on main. Many were opened by other AI-assisted contributors within days.</div><span class="pill none">Skipped</span></div>
+    <div class="row"><div class="r">humanize, tabulate, click, jinja, more-itertools</div><div class="why">Full test suites pass on Python 3.14. Nothing to fix.</div><span class="pill merged">Clean</span></div>
+    <div class="row"><div class="r">sktime metrics, splitters, datatypes</div><div class="why">Checked against reference formulas and invariants. MdASE differed but is documented as median over median.</div><span class="pill merged">Clean</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Ground rules for every PR</h2>
+  <ul class="rules">
+    <li>Only bugs with no open PR, no claim, and a reproduction that fails first.</li>
+    <li>Regression test that fails before and passes after. Smallest possible diff.</li>
+    <li>Each repo's CONTRIBUTING file followed. AI assistance disclosed in the PR.</li>
+    <li>No pinging maintainers. If no real bug is found, the agent reports that and opens nothing.</li>
+  </ul>
+</section>
+
+<div class="note"><b>Latest check.</b> All 12 PRs are open. One maintainer comment so far (gcsim prefers its own refactor). CI turned up three small problems, all fixed and pushed: a coverage gap on the starlette PR, an import-order lint failure on sphinx-needs #2103, and a comment-style nit from a review bot on pr-agent. The two rust-decimal PRs have not started CI, probably waiting for a maintainer to approve the run.</div>
+<div class="note">Merges depend on maintainers, so the score will move slowly. This page is a snapshot and gets republished at each 5-hour check.</div>
+</div>
+
+</body></html>

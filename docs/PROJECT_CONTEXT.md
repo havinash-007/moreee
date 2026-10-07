@@ -1,0 +1,96 @@
+# Project context (share this with the team)
+
+## One-line pitch
+An AI mentor that takes a student from "I have never contributed to open source" to "my first pull request is open, I understand it, and I can defend it", with a choice between learning by hand, vibe coding with guardrails, or fully automated agents.
+
+## Why this exists
+- Browsing "good first issue" lists fails: popular repos get every easy issue claimed within hours, and many projects now have rules about AI-assisted work.
+- Students (and hackathon teams) lose most of their time on setup, picking an issue, and understanding the repo, not on writing code.
+- Origin: `oss-bug-hunt`, an automated multi-agent tool that opened 12 PRs across 9 projects in a day. Result: 0 merged at the time of writing. Lesson: volume without understanding does not get merged. This project keeps the verification discipline and adds teaching.
+
+## Users
+1. A student with 5-10 hours who wants a first contribution.
+2. A hackathon team that wants a real, demo-able contribution in 24-48 hours.
+3. (Full-auto mode) An experienced contributor who wants to scale output while supervising.
+
+## The three modes
+| Mode | Who codes | Mentor role |
+|---|---|---|
+| Learn | Student | Coach: hint ladder (question, pointer, sketch). Never gives the full fix. |
+| Semi-auto | Student prompts AI, drafts arrive in small chunks | Pair: asks one check question per chunk; student must edit something themselves |
+| Full-auto | Worker agents | Coordinator: verifies every PR on GitHub, tracks status |
+Details: `learn/modes.md`.
+
+## The flow
+10 questions -> deterministic org match (free) -> scout agent finds free issues -> explainer writes a repo tour -> coach/pair guides the fix -> reply assistant helps answer reviewers.
+
+## Architecture
+```
+Browser UI (frontend/index.html, no build step)
+   |  JSON
+FastAPI (backend/app.py)
+   |-- matcher.py   deterministic org scoring from mentor/orgs.json      (0 tokens)
+   |-- github.py    REST client: issues, policy scan, repo overview      (0 tokens)
+   |-- agents.py    scout (cheap model), explainer + coach (smart model)
+   |-- replier.py   PR comment classify (cheap) + draft (smart) + gated send
+   |-- llm.py       Claude wrapper: tiers, disk cache, prompt cache, budgets
+```
+Claude Code flow (`/oss-mentor`, `.claude/skills/`, `agents/*.md`) is the terminal version and the only place Full-auto workers run, because they need a local checkout, test runs and the user's GitHub login.
+
+## Credit efficiency (what we do and why)
+1. **Do not call the model for deterministic work.** Org matching and issue filtering (open, unassigned, labelled, no linked PR) are plain code.
+2. **Two model tiers.** Haiku 4.5 for triage and classification; Sonnet 5.5 for teaching and drafting. Configurable in `.env`.
+3. **One call per task, batched.** Scouting ranks all candidates in one call. Reply drafting classifies all comments in one call and drafts all replies in one call.
+4. **Disk cache.** An identical request is free (`data/cache/`).
+5. **Prompt caching.** Top-level `cache_control` on every call so repeated stable prefixes are billed at 0.1x.
+6. **Caps.** `max_tokens` per task, effort `low` on the smart model, truncated inputs, chat history trimmed to 6 turns.
+7. **Budgets.** Per-session and global USD caps checked before each call using a worst-case estimate, charged from real `usage`. Over budget returns HTTP 402 and the UI shows it. The UI header shows live spend.
+Rough per-step cost from the price table (estimates, verify with `/api/usage`): scout about $0.01, repo tour about $0.02, each coach turn about $0.01, reply check about $0.02. A full first-issue session should land well under the default $0.50 cap.
+
+## Safety and policy decisions (important)
+- **The student does their own legal sign-offs.** DCO and CLA are never signed by an agent.
+- **Policy scan before recommending.** `github.policy_scan` reads AI_POLICY/AGENTS/CONTRIBUTING and flags AI restrictions. It is a keyword scan, so a hit means "a human must read this", not a verdict. If GitHub cannot be read (rate limit, outage) the error propagates; it must never look like "no restriction".
+- **Real finding:** Zulip, our top beginner pick, says not to submit AI-generated PRs you have not personally understood and not to post AI-generated messages in its dev community. So: Learn/Semi modes show a warning chip, Full-auto skips such repos, and the reply assistant refuses to post for them.
+- **Auto-reply is draft-first.** The assistant drafts replies; sending is OFF by default (`AUTO_POST_REPLIES=false`), needs a token, needs the human to approve each reply, appends an AI-disclosure line, and is blocked for repos whose policy flags AI.
+- **Secrets** live in `.env` (gitignored). The API key is never sent to the browser.
+
+## What is built vs not built
+Built: question flow, matcher, scout, repo tour, coach chat, reply drafting and gated send, usage meter and budgets, Claude Code skill, 14 backend tests.
+Not built yet: Full-auto workers inside the web app (they run in Claude Code), user accounts and multi-tenant isolation, a persistent database (state is in `data/` files), streaming responses, background polling of PRs for new comments, a hackathon team mode.
+
+## Known limits
+- `mentor/orgs.json` ratings and `legal` fields are judgement and may be wrong; always verify live.
+- Unauthenticated GitHub allows 60 requests/hour; use a token.
+- The UI has been syntax-checked and the API smoke-tested, but not yet visually reviewed in a browser or run end-to-end with a real Anthropic key.
+- Sonnet/Haiku model IDs and prices are hard-coded defaults; check `backend/config.py` when models change.
+
+## Open questions for the team
+1. Do we allow auto-posting at all, or keep reply drafting permanently manual?
+2. Hosted multi-user app (needs auth, per-user budgets, a database) or local tool per student?
+3. Which hackathon format are we targeting first, and does it count contributions to existing projects?
+4. Should the org catalogue be curated by us or discovered from GitHub/GSoC lists?
+
+## Run it
+```bash
+./run.sh            # creates venv, installs deps, copies .env.example to .env
+# put ANTHROPIC_API_KEY in .env, run again, open http://localhost:8000
+backend tests: .venv/bin/python -m pytest backend -q
+```
+
+## File index
+| Path | What |
+|---|---|
+| `backend/llm.py` | Claude wrapper: tiers, caches, budgets |
+| `backend/matcher.py` | Free org scoring |
+| `backend/github.py` | GitHub REST + policy scan |
+| `backend/agents.py` | Scout, explainer, coach |
+| `backend/replier.py` | Reviewer-comment replies |
+| `backend/app.py` | API + serves UI; holds the 10 questions |
+| `backend/tests/test_core.py` | Tests for matcher, budget, cache, gating |
+| `frontend/index.html` | The UI |
+| `mentor/questions.md`, `mentor/orgs.json` | Rubric and org catalogue |
+| `.claude/skills/oss-mentor/SKILL.md` | Terminal mentor flow |
+| `agents/*.md` | Role prompts and rules (scout, explainer, coach, pair, worker) |
+| `learn/` | Modes, PR template, hackathon playbook |
+| `tools/pr_status.py`, `prs.json` | Full-auto PR tracker |
+| `archive/` | Original oss-bug-hunt files |

@@ -1,0 +1,50 @@
+[
+  {
+    "repo": "sktime/skpro",
+    "number": 1200
+  },
+  {
+    "repo": "Kludex/starlette",
+    "number": 3643
+  },
+  {
+    "repo": "The-PR-Agent/pr-agent",
+    "number": 3966
+  },
+  {
+    "repo": "useblocks/sphinx-needs",
+    "number": 2103
+  },
+  {
+    "repo": "useblocks/sphinx-needs",
+    "number": 2104
+  },
+  {
+    "repo": "vitejs/vite-plugin-vue",
+    "number": 856
+  },
+  {
+    "repo": "paupino/rust-decimal",
+    "number": 869
+  },
+  {
+    "repo": "useblocks/sphinx-needs",
+    "number": 2105
+  },
+  {
+    "repo": "paupino/rust-decimal",
+    "number": 870
+  },
+  {
+    "repo": "genshinsim/gcsim",
+    "number": 3206
+  },
+  {
+    "repo": "Rel1cx/eslint-react",
+    "number": 2010
+  },
+  {
+    "repo": "oras-project/oras",
+    "number": 2227
+  }
+]

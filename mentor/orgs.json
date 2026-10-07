@@ -1,0 +1,264 @@
+{
+ "_note": "Starting catalogue only. Ratings are the author's judgement (1-5), not measured. ALWAYS verify live with gh (recent outside merges, CONTRIBUTING, AI policy, DCO/CLA) before recommending. Add or remove orgs freely. `legal` is a best guess (cla/dco/none/varies): confirm in CONTRIBUTING before the student commits.",
+ "orgs": [
+  {
+   "name": "Zulip",
+   "github": "zulip",
+   "languages": [
+    "Python",
+    "TypeScript"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 5,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Famous for mentoring and a detailed contributor guide.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Oppia",
+   "github": "oppia",
+   "languages": [
+    "Python",
+    "TypeScript",
+    "Kotlin"
+   ],
+   "domains": [
+    "web",
+    "mobile",
+    "education"
+   ],
+   "beginner": 5,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Structured onboarding for newcomers; GSoC participant.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "cla"
+  },
+  {
+   "name": "scikit-learn",
+   "github": "scikit-learn",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Easy issues are claimed fast; docs and tests are good entry points.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "none"
+  },
+  {
+   "name": "NumPy / SciPy (NumFOCUS)",
+   "github": "numpy",
+   "languages": [
+    "Python",
+    "C"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Docs and small bug fixes welcomed; reviews can be slow.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "none"
+  },
+  {
+   "name": "Django",
+   "github": "django",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 2,
+   "setup": "light",
+   "notes": "Work goes through Trac tickets; read the contributing guide closely.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "cla"
+  },
+  {
+   "name": "Kubernetes",
+   "github": "kubernetes",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "CNCF; contributor licence agreement required; large SIG-based community. Start with docs or kubernetes/website.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "cla"
+  },
+  {
+   "name": "Prometheus",
+   "github": "prometheus",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "CNCF; DCO; many small client libraries and exporters.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "dco"
+  },
+  {
+   "name": "OpenTelemetry",
+   "github": "open-telemetry",
+   "languages": [
+    "Go",
+    "Java",
+    "Python",
+    "JavaScript",
+    "Rust"
+   ],
+   "domains": [
+    "cloud-devops",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "CNCF; one repo per language; CLA via EasyCLA.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "cla"
+  },
+  {
+   "name": "OpenSSF",
+   "github": "ossf",
+   "languages": [
+    "Go",
+    "Python"
+   ],
+   "domains": [
+    "security"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Linux Foundation; Scorecard and related tools; security focus.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Jenkins",
+   "github": "jenkinsci",
+   "languages": [
+    "Java"
+   ],
+   "domains": [
+    "devtools",
+    "cloud-devops"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Many small plugins; GSoC participant.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "none"
+  },
+  {
+   "name": "Rust language",
+   "github": "rust-lang",
+   "languages": [
+    "Rust"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Has an explicit mentoring label system; compiler builds are heavy.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "none"
+  },
+  {
+   "name": "Home Assistant",
+   "github": "home-assistant",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "devtools",
+    "mobile"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Huge integration surface; fixes for single integrations are small.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "cla"
+  },
+  {
+   "name": "Mozilla",
+   "github": "mozilla",
+   "languages": [
+    "JavaScript",
+    "Rust",
+    "C++"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Uses Bugzilla as well as GitHub; good-first-bug workflow.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Apache Software Foundation",
+   "github": "apache",
+   "languages": [
+    "Java",
+    "Python",
+    "Go"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Each project differs; mailing-list culture; GSoC participant.",
+   "gsoc": true,
+   "brand": 4,
+   "legal": "varies"
+  }
+ ]
+}
