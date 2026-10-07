@@ -107,7 +107,7 @@ def scout(org: str, profile: dict, session_id: str, repo: str | None = None, fal
 # ------------------------------------------------------------ explainer
 
 TOUR_SYSTEM = """You teach a student a repository in plain language. Use ONLY the material given; if something is unknown, say so.
-Write markdown with these sections: What it is; Architecture (a mermaid flowchart of components you can infer);
+Write markdown with these sections: What it is; Architecture (ONE mermaid code block, fenced as ```mermaid, using `flowchart TD`, simple ids like A, B, C1, EVERY label in double quotes, no parentheses or colons outside quotes, at most 10 nodes, only components you can infer from the material);
 Directory map (one line each); How to build and test (only commands found in the material); Conventions and sign-offs;
 Files to read first (max 5, from the directory listing); 3 check questions. Be concise: under 700 words."""
 

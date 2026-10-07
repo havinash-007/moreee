@@ -2,6 +2,7 @@
 // Customize: the STEP guides (copy, commands), colors, hint buttons.
 // Props: issue {repo,number,title,url,legal[]}, tourHtml (sanitised HTML), messages [{role,text?,html?}],
 //        onSend(text), busy, mode ('learn'|'semi'), onBack, costNote.
+// Optional: window.mermaid (diagrams in the tour are drawn when the Repo tour tab opens; invalid ones fall back to a folder diagram).
 // Click a step on the left to open its guide. The small circle marks it done. Commands use this issue's real repo/number.
 function guideFor(issue) {
   const repo = issue.repo, name = repo.split('/')[1], n = issue.number;
@@ -91,6 +92,53 @@ function guideFor(issue) {
   ];
 }
 
+const ROLES = [
+  [/^(src|lib|app|pkg|core|internal|cmd|server|client|packages?|source|sources|modules?)$/i, 'Source code'],
+  [/test|spec|e2e|__tests__|sharedtest/i, 'Tests'],
+  [/^docs?$|documentation|wiki/i, 'Documentation'],
+  [/^\.github$|^ci$|circleci|workflows?|^\.gitlab/i, 'CI and automation'],
+  [/script|tools?|^bin$|utils?|fastlane|^hack$/i, 'Scripts and tools'],
+  [/example|sample|demo/i, 'Examples'],
+  [/config|conf$|settings|^\.vscode$|^\.idea$/i, 'Configuration'],
+  [/assets?|static|public|images?|resources?|res$/i, 'Assets'],
+  [/build|dist|^out$|target/i, 'Build output'],
+];
+
+// Deterministic diagram from the repository's top-level folders (honest: inferred from names only).
+function folderDiagram(repo, names) {
+  const dirs = (names || []).filter((n) => n.startsWith('dir/')).map((n) => n.slice(4)).slice(0, 14);
+  if (!dirs.length) return '';
+  const roleOf = (d) => (ROLES.find(([re]) => re.test(d)) || [null, 'Other'])[1];
+  const q = (t) => String(t).replace(/["<>]/g, '');
+  const lines = ['flowchart TD', `  R["${q(repo)}"]`];
+  const id = {};
+  dirs.forEach((d, i) => { id[d] = 'D' + i; lines.push(`  D${i}["${q(d)}<br/>${roleOf(d)}"]`); lines.push(`  R --> D${i}`); });
+  const src = dirs.find((d) => roleOf(d) === 'Source code'), tst = dirs.find((d) => roleOf(d) === 'Tests'), ci = dirs.find((d) => roleOf(d) === 'CI and automation'), doc = dirs.find((d) => roleOf(d) === 'Documentation');
+  if (tst && src) lines.push(`  ${id[tst]} -.->|exercises| ${id[src]}`);
+  if (ci && tst) lines.push(`  ${id[ci]} -.->|runs| ${id[tst]}`);
+  if (doc && src) lines.push(`  ${id[doc]} -.->|describes| ${id[src]}`);
+  return lines.join('\n');
+}
+
+async function drawDiagrams(root, fallback) {
+  const mm = window.mermaid;
+  if (!mm || !root) return;
+  mm.initialize({ startOnLoad: false, theme: 'base', securityLevel: 'strict', flowchart: { htmlLabels: true, curve: 'basis' },
+    themeVariables: { darkMode: true, background: '#05080c', primaryColor: '#0d1b2a', primaryBorderColor: '#7dd3fc', primaryTextColor: '#EAF2FF', lineColor: '#fb923c',
+      secondaryColor: '#101820', tertiaryColor: '#101820', textColor: '#EAF2FF', clusterBkg: '#0a121c', clusterBorder: '#27425e' } });
+  for (const el of root.querySelectorAll('pre.mermaid:not([data-drawn])')) {
+    const src = el.textContent;
+    let ok = false;
+    try { await mm.parse(src); await mm.run({ nodes: [el] }); ok = true; } catch (e) { /* invalid diagram from the model: try the fallback */ }
+    if (!ok && fallback) {
+      try { el.removeAttribute('data-processed'); el.textContent = fallback; await mm.parse(fallback); await mm.run({ nodes: [el] }); ok = true;
+        el.insertAdjacentHTML('afterend', '<p class="text-xs text-zinc-500">Simplified diagram built from the repository folder names.</p>'); } catch (e) { /* give up below */ }
+    }
+    if (!ok) { el.outerHTML = '<p class="text-sm text-zinc-500">The architecture diagram could not be drawn. The text above describes the structure.</p>'; continue; }
+    el.setAttribute('data-drawn', '1');
+  }
+}
+
 export default function WorkspaceView({
   issue = { repo: 'owner/repo', number: 1, title: 'Example issue', url: '#', legal: [] },
   tourHtml = '<p>Your repo tour appears here.</p>',
@@ -100,6 +148,7 @@ export default function WorkspaceView({
   mode = 'learn',
   onBack = () => {},
   costNote = '',
+  structure = [],
 }) {
   const guides = React.useMemo(() => guideFor(issue), [issue.repo, issue.number]);
   const key = `steps:${issue.repo}#${issue.number}`;
@@ -111,9 +160,11 @@ export default function WorkspaceView({
   const [text, setText] = React.useState('');
   const [copied, setCopied] = React.useState('');
   const endRef = React.useRef(null);
+  const tourRef = React.useRef(null);
 
   React.useEffect(() => { try { localStorage.setItem(key, JSON.stringify(done)); } catch {} }, [done]);
   React.useEffect(() => { try { localStorage.setItem(key + ':c', JSON.stringify(checks)); } catch {} }, [checks]);
+  React.useEffect(() => { if (tab === 'tour') drawDiagrams(tourRef.current, folderDiagram(issue.repo, structure)); }, [tab, tourHtml]);
   React.useEffect(() => { if (endRef.current) endRef.current.scrollTop = endRef.current.scrollHeight; }, [messages, busy, tab]);
 
   const current = guides.findIndex((_, i) => !done.includes(i));
@@ -229,7 +280,7 @@ export default function WorkspaceView({
             </div>
           )}
 
-          {tab === 'tour' && <div className={`tour ${H} overflow-auto p-6 md:p-8`} dangerouslySetInnerHTML={{ __html: tourHtml }} />}
+          {tab === 'tour' && <div ref={tourRef} className={`tour ${H} overflow-auto p-6 md:p-8`} dangerouslySetInnerHTML={{ __html: tourHtml }} />}
 
           {tab === 'coach' && (
             <div className={`flex ${H} flex-col`}>

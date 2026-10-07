@@ -2,7 +2,10 @@
 // Flow: hero -> interview -> matches -> issues -> workspace, plus a Replies tab.
 
 const renderMd = (md) => {
-  const html = marked.parse(md || '').replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, '<pre class="mermaid">$1</pre>');
+  // The model sometimes forgets the ```mermaid label, so also treat an unlabeled block that starts like a diagram as one.
+  const html = marked.parse(md || '')
+    .replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, '<pre class="mermaid">$1</pre>')
+    .replace(/<pre><code(?: class="language-[a-z]*")?>\s*((?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram)[\s\S]*?)<\/code><\/pre>/g, '<pre class="mermaid">$1</pre>');
   return DOMPurify.sanitize(html, { ADD_ATTR: ['class'] });
 };
 
@@ -74,6 +77,7 @@ export default function App() {
   const [issue, setIssue] = React.useState(null);
   const [tourHtml, setTourHtml] = React.useState('');
   const [tourMd, setTourMd] = React.useState('');
+  const [structure, setStructure] = React.useState([]);
   const [msgs, setMsgs] = React.useState([]);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -132,15 +136,6 @@ export default function App() {
     Scene.setBlur(px);
   }, [view, step, orgs.length]);
 
-  // mermaid diagrams inside the tour
-  React.useEffect(() => {
-    if (step !== 'work' || !window.mermaid) return;
-    const t = setTimeout(() => {
-      try { mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: { darkMode: true, background: '#05080c', primaryColor: '#1c1912', primaryBorderColor: '#FB923C', primaryTextColor: '#F5EFE0', lineColor: '#FB923C', secondaryColor: '#16140e', tertiaryColor: '#16140e', textColor: '#F5EFE0' } }); mermaid.run({ querySelector: '.tour pre.mermaid' }); } catch {}
-    }, 150);
-    return () => clearTimeout(t);
-  }, [step, tourHtml, msgs.length]);
-
   const start = () => run(async () => {
     if (!qs.length) setQs(await api('/api/questions'));
     setQi(0); setStep('interview'); stage3d('explore');
@@ -188,7 +183,7 @@ export default function App() {
     if (!(await verifyPick(i))) return;
     const p = scout.picks[i];
     const t = await api('/api/tour', { repo: p.repo, issue_title: p.title, level: answers.skill || 'beginner' });
-    setIssue(p); setTourMd(t.markdown); setTourHtml(renderMd(t.markdown)); setMsgs([]); setStep('work');
+    setIssue(p); setTourMd(t.markdown); setStructure((t.overview && t.overview.top_level) || []); setTourHtml(renderMd(t.markdown)); setMsgs([]); setStep('work');
   });
   const send = (text) => {
     const history = [...msgs.map((m) => ({ role: m.role, content: m.md || m.text })), { role: 'user', content: text }];
@@ -284,7 +279,7 @@ export default function App() {
               <button onClick={() => setStep('issues')} className="mt-8 rounded-full bg-white px-8 py-3.5 font-extrabold text-zinc-950">Back to issues</button>
             </section>
           ) : (
-            <WorkspaceView issue={issue} tourHtml={tourHtml} messages={msgs} onSend={send} busy={busy}
+            <WorkspaceView issue={issue} tourHtml={tourHtml} structure={structure} messages={msgs} onSend={send} busy={busy}
               mode={answers.mode === 'semi' ? 'semi' : 'learn'} onBack={() => setStep('issues')}
               costNote={usage ? `This session: $${usage.session.cost_usd.toFixed(3)} of $${usage.session_budget_usd.toFixed(2)}` : ''} />
           )
