@@ -1,0 +1,16 @@
+.venv
+.git
+.github
+.claude
+data
+archive
+docs
+learn
+tools
+agents
+prs.json
+backend/tests
+**/__pycache__
+*.png
+.env
+.env.*

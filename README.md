@@ -44,6 +44,8 @@ FastAPI backend plus a single-page UI: interview, org match, scout, repo tour, c
 
 **Full-auto in the web app:** choose Full-auto, pass the pre-flight checks, paste the one command in a terminal, watch live progress, review the diff, and approve. The AI works on your machine in your own fork; nothing is committed or opened before you approve. See `docs/ARCHITECTURE.md` section 7.
 
+**Deploying:** see [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md). A fresh deploy is safe by default: it refuses to serve the API until sign-in, a session secret and a Postgres database are configured.
+
 ## Use it in Claude Code
 
 ```bash

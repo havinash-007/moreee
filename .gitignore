@@ -7,3 +7,6 @@ data/
 learn/*-tour.md
 mentor/profile.md
 mentor/journal.md
+.vercel
+.env*
+!.env.example

@@ -9,10 +9,33 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, auth, catalogue, config, jobs, llm, matcher, profiles, replier
+from . import agents, auth, catalogue, config, db, jobs, llm, matcher, profiles, replier, usage
 
 app = FastAPI(title="oss-mentor")
 app.include_router(auth.router)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if request.url.path.startswith(("/api/", "/auth/")):
+        resp.headers.setdefault("Cache-Control", "no-store")  # personal data and one-time tokens must never be cached
+    return resp
+
+
+@app.middleware("http")
+async def deploy_guard(request: Request, call_next):
+    """A public deployment refuses to serve the API until sign-in, a session secret and a database are configured.
+    Without this, a fresh deploy would be an open proxy to the operator's Anthropic and GitHub credentials."""
+    missing = config.deploy_missing()
+    p = request.url.path
+    if missing and p.startswith(("/api/", "/auth/")) and p != "/api/health":
+        return JSONResponse({"error": "This deployment is not configured yet.", "missing": missing, "kind": "setup"}, status_code=503)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -135,7 +158,9 @@ async def _perm(_, e):
 
 @app.get("/api/health")
 def health():
-    return {"anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY")), "github_token": bool(config.GITHUB_TOKEN) or auth.hosted(),
+    miss = config.deploy_missing()
+    return {"configured": not miss, "missing": miss, "public_deploy": config.PUBLIC_DEPLOY, "storage": db.backend(),
+            "anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY")), "github_token": bool(config.GITHUB_TOKEN) or auth.hosted(),
             "posting_enabled": config.AUTO_POST_REPLIES, "hosted": auth.hosted(), "models": {"cheap": config.MODEL_CHEAP, "smart": config.MODEL_SMART},
             "session_budget_usd": config.SESSION_BUDGET_USD}
 
@@ -303,8 +328,9 @@ def replies_send(r: SendReq, user: auth.User = Depends(auth.require_user)):
 
 
 @app.get("/api/usage")
-def usage(user: auth.User = Depends(auth.require_user)):
-    return {"session": llm.ledger.session(user.login).as_dict(), "total": llm.ledger.total.as_dict(),
+def usage_endpoint(user: auth.User = Depends(auth.require_user)):
+    return {"session": llm.session_usage(user.login),
+            "total": {"cost_usd": usage.today_all()} if usage.persistent() else llm.ledger.total.as_dict(),
             "session_budget_usd": config.SESSION_BUDGET_USD}
 
 
@@ -315,7 +341,7 @@ class ProfileReq(BaseModel):
 
 
 def _usage_for(user: auth.User) -> dict:
-    return {"session": llm.ledger.session(user.login).as_dict(), "session_budget_usd": config.SESSION_BUDGET_USD}
+    return {"session": llm.session_usage(user.login), "session_budget_usd": config.SESSION_BUDGET_USD}
 
 
 @app.get("/api/profile")
@@ -343,8 +369,11 @@ def profile_export(user: auth.User = Depends(auth.require_user)):
 def profile_delete(request: Request, user: auth.User = Depends(auth.require_user)):
     out = profiles.delete_everything(user.login)
     llm.ledger.sessions.pop(user.login, None)
+    usage.delete(user.login)
     resp = JSONResponse({"ok": True, **out})
-    if auth.hosted():  # deleting your data also signs you out
+    if auth.hosted():  # deleting your data also signs you out, everywhere
+        if config.SECRET_KEY:
+            auth.revoke(user.login)
         auth.SESSIONS.pop(request.cookies.get(auth.COOKIE, ""), None)
         resp.delete_cookie(auth.COOKIE)
     return resp

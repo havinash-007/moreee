@@ -5,6 +5,9 @@ Local mode   : no client id -> one user on this machine. Identity comes from the
                really are; the storage key stays "local".
 Sessions live in memory (a restart signs everyone out) and expire server-side after SESSION_DAYS.
 """
+import base64
+import hashlib
+import json
 import secrets
 import time
 from contextvars import ContextVar
@@ -14,7 +17,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from . import config
+from . import config, db
 
 router = APIRouter()
 COOKIE = "oss_session"
@@ -63,11 +66,63 @@ def _local_identity() -> User:
     return u
 
 
+# ---- stateless sessions (used whenever SECRET_KEY is set, which a serverless deployment requires) -------------------------
+# The cookie itself is the session: an AES-encrypted, tamper-proof (Fernet) blob holding the student's identity and GitHub token.
+# The browser cannot read or alter it, and any server instance can open it, so nothing has to be shared between instances.
+# Sign-out and "delete my data" bump a per-student epoch in the database; cookies issued before it stop working everywhere.
+_epoch_cache: dict[str, tuple[float, float]] = {}
+EPOCH_TTL = 10  # seconds a server instance may cache a student's epoch (bounds how long a revoked cookie can still work elsewhere)
+
+
+def _fernet():
+    from cryptography.fernet import Fernet
+    return Fernet(base64.urlsafe_b64encode(hashlib.sha256(config.SECRET_KEY.encode()).digest()))
+
+
+def seal(u: User) -> str:
+    payload = {"login": u.login, "token": u.token, "avatar": u.avatar, "name": u.name, "gh": u.gh_login, "url": u.url, "iat": u.created}
+    return _fernet().encrypt(json.dumps(payload, separators=(",", ":")).encode()).decode()
+
+
+def unseal(value: str) -> User | None:
+    from cryptography.fernet import InvalidToken
+    try:
+        d = json.loads(_fernet().decrypt(value.encode(), ttl=SESSION_DAYS * 86400))
+        return User(login=d["login"], token=d["token"], avatar=d.get("avatar", ""), name=d.get("name", ""), gh_login=d.get("gh", ""), url=d.get("url", ""), created=float(d["iat"]))
+    except (InvalidToken, ValueError, KeyError, TypeError):
+        return None
+
+
+def epoch(uid: str) -> float:
+    now = time.time()
+    hit = _epoch_cache.get(uid)
+    if hit and now - hit[0] < EPOCH_TTL:
+        return hit[1]
+    with db.connect() as con:
+        r = con.execute("SELECT epoch FROM auth_epoch WHERE uid=?", (uid,)).fetchone()
+    e = float(r[0]) if r else 0.0
+    _epoch_cache[uid] = (now, e)
+    return e
+
+
+def revoke(uid: str) -> None:
+    """Invalidate every sign-in cookie issued to this student so far (all devices)."""
+    now = time.time()
+    with db.connect() as con:
+        con.execute("INSERT INTO auth_epoch(uid, epoch) VALUES (?,?) ON CONFLICT(uid) DO UPDATE SET epoch=excluded.epoch", (uid, now))
+    _epoch_cache[uid] = (now, now)
+
+
 def _session(request: Request) -> User | None:
-    sid = request.cookies.get(COOKIE, "")
-    u = SESSIONS.get(sid)
+    val = request.cookies.get(COOKIE, "")
+    if config.SECRET_KEY:
+        u = unseal(val) if val else None
+        if u and u.created <= epoch(u.login):
+            return None  # signed out (or data deleted) after this cookie was issued
+        return u
+    u = SESSIONS.get(val)
     if u and time.time() - u.created > SESSION_DAYS * 86400:
-        SESSIONS.pop(sid, None)  # server-side expiry: a stolen or stale cookie stops working
+        SESSIONS.pop(val, None)  # server-side expiry: a stolen or stale cookie stops working
         return None
     return u
 
@@ -75,6 +130,8 @@ def _session(request: Request) -> User | None:
 async def require_user(request: Request) -> User:
     """Dependency: resolves the signed-in student and binds their token for this request."""
     if not hosted():
+        if config.PUBLIC_DEPLOY:  # defence in depth: a public site must never fall back to the operator's own identity
+            raise HTTPException(503, "This deployment is not configured for sign-in yet.")
         u = _local_identity()
     else:
         u = _session(request)
@@ -125,8 +182,12 @@ def callback(request: Request, code: str = "", state: str = ""):
     if len(SESSIONS) >= MAX_SESSIONS:  # drop the oldest rather than grow without bound
         for k in sorted(SESSIONS, key=lambda k: SESSIONS[k].created)[:100]:
             SESSIONS.pop(k, None)
-    sid = secrets.token_urlsafe(32)
-    SESSIONS[sid] = User(login=me["login"], token=tok, avatar=me.get("avatar_url", ""), name=me.get("name") or "", gh_login=me["login"], url=me.get("html_url", ""))
+    user = User(login=me["login"], token=tok, avatar=me.get("avatar_url", ""), name=me.get("name") or "", gh_login=me["login"], url=me.get("html_url", ""))
+    if config.SECRET_KEY:
+        sid = seal(user)  # stateless: the cookie carries the session
+    else:
+        sid = secrets.token_urlsafe(32)
+        SESSIONS[sid] = user
     r = RedirectResponse("/")
     r.set_cookie(COOKIE, sid, httponly=True, samesite="lax", secure=_secure(request), max_age=SESSION_DAYS * 86400)
     r.delete_cookie(STATE_COOKIE)
@@ -135,6 +196,9 @@ def callback(request: Request, code: str = "", state: str = ""):
 
 @router.post("/auth/logout")
 def logout(request: Request):
+    u = _session(request)
+    if config.SECRET_KEY and u:
+        revoke(u.login)  # real sign-out: this cookie (and any copy of it) stops working immediately
     SESSIONS.pop(request.cookies.get(COOKIE, ""), None)
     r = JSONResponse({"ok": True})
     r.delete_cookie(COOKIE)

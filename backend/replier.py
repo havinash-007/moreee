@@ -8,9 +8,8 @@ Nothing is posted unless the operator set AUTO_POST_REPLIES=true AND the caller 
 """
 import json
 
-from . import auth, config, github, llm
+from . import auth, config, db, github, llm
 
-STATE = config.DATA / "replies.json"
 
 CLASSIFY_SYSTEM = """Classify each pull-request comment. Reply with JSON only: {"items":[{"id":N,"kind":"actionable|question|nit|praise|other","needs_code":true|false}]}
 actionable = asks for a change; question = asks something; nit = tiny style remark; praise = thanks/approval; other = anything else."""
@@ -21,15 +20,17 @@ if you are not sure, ask a clarifying question; never claim tests passed unless 
 Reply with JSON only: {"replies":[{"id":N,"reply":"text"}]}"""
 
 
-def _load() -> dict:
-    try:
-        return json.loads(STATE.read_text())
-    except (OSError, ValueError):
-        return {}
+def _handled(uid: str, pr: str) -> set:
+    with db.connect() as con:
+        r = con.execute("SELECT handled FROM reply_state WHERE uid=? AND pr=?", (uid, pr)).fetchone()
+    return set(json.loads(r[0])) if r else set()
 
 
-def _save(d: dict) -> None:
-    STATE.write_text(json.dumps(d, indent=1))
+def _mark(uid: str, pr: str, ids: list) -> None:
+    both = sorted(_handled(uid, pr) | set(ids))
+    with db.connect() as con:
+        con.execute("INSERT INTO reply_state(uid, pr, handled) VALUES (?,?,?) ON CONFLICT(uid, pr) DO UPDATE SET handled=excluded.handled",
+                    (uid, pr, json.dumps(both)))
 
 
 def parse_pr(url: str) -> tuple[str, str, int]:
@@ -43,8 +44,7 @@ def fetch_new_comments(owner: str, repo: str, number: int, me: str) -> tuple[lis
     author = pr["user"]["login"]
     if me != "local" and author.lower() != me.lower():
         raise PermissionError(f"This PR belongs to @{author}. You can only draft replies for your own pull requests.")
-    state = _load().get(f"{owner}/{repo}#{number}", {})
-    seen = set(state.get("handled", []))
+    seen = _handled(me, f"{owner}/{repo}#{number}")
     comments = []
     for c in github.get(f"/repos/{owner}/{repo}/pulls/{number}/comments", {"per_page": 100}):
         comments.append({"id": c["id"], "kind_src": "review", "user": c["user"]["login"], "bot": c["user"]["type"] == "Bot",
@@ -85,9 +85,6 @@ def draft(pr_url: str, session_id: str) -> dict:
         out.append({"id": x["id"], "source": x["kind_src"], "user": x["user"], "comment": x["body"], "path": x["path"],
                     "kind": k.get("kind", "other"), "needs_code": bool(k.get("needs_code")),
                     "reply": replies.get(x["id"], "")})
-    state = _load()
-    state.setdefault(f"{owner}/{repo}#{number}", {}).setdefault("handled", [])
-    _save(state)
     flags = _ai_flags(owner, repo)
     return {"drafts": out, "pr": {"owner": owner, "repo": repo, "number": number}, "ai_flags": flags,
             "can_post": config.AUTO_POST_REPLIES and bool(auth.current_token.get() or config.GITHUB_TOKEN) and not flags, "cost_usd": cost}
@@ -106,7 +103,6 @@ def send(pr_url: str, items: list[dict], disclose: bool = True, me: str = "local
             raise PermissionError(f"This PR belongs to @{author}. You can only reply on your own pull requests.")
     if _ai_flags(owner, repo):
         raise PermissionError("This project's policy restricts AI-generated messages. Copy the draft, rewrite it in your own words, and post it yourself.")
-    state = _load()
     key = f"{owner}/{repo}#{number}"
     sent = []
     for it in items:
@@ -119,7 +115,6 @@ def send(pr_url: str, items: list[dict], disclose: bool = True, me: str = "local
             github.post(f"/repos/{owner}/{repo}/pulls/{number}/comments/{it['id']}/replies", {"body": body})
         else:
             github.post(f"/repos/{owner}/{repo}/issues/{number}/comments", {"body": body})
-        state.setdefault(key, {}).setdefault("handled", []).append(it["id"])
         sent.append(it["id"])
-    _save(state)
+    _mark(me, key, sent)
     return {"sent": sent}

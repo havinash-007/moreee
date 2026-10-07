@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 
-from . import config
+from . import config, usage
 
 CACHE_DIR = config.DATA / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
@@ -87,15 +87,22 @@ def _charge(u: Usage, model: str, usage) -> float:
     return c
 
 
+def session_usage(uid: str) -> dict:
+    """What this student has spent: today's total in the database when persistent, else this process's session ledger."""
+    return usage.summary(uid) if usage.persistent() else ledger.session(uid).as_dict()
+
+
 def _check_budget(session_id: str, model: str, est_in: int, max_tokens: int) -> None:
     worst = cost_of(model, est_in, max_tokens)
-    s = ledger.session(session_id)
-    if s.cost_usd + worst > config.SESSION_BUDGET_USD:
+    spent = usage.today(session_id) if usage.persistent() else ledger.session(session_id).cost_usd
+    window = "Daily" if usage.persistent() else "Session"
+    if spent + worst > config.SESSION_BUDGET_USD:
         raise BudgetExceeded(
-            f"Session budget ${config.SESSION_BUDGET_USD:.2f} would be exceeded "
-            f"(spent ${s.cost_usd:.4f}, this call could cost up to ${worst:.4f})."
+            f"{window} budget ${config.SESSION_BUDGET_USD:.2f} would be exceeded "
+            f"(spent ${spent:.4f}, this call could cost up to ${worst:.4f})."
         )
-    if ledger.total.cost_usd + worst > config.GLOBAL_BUDGET_USD:
+    total = usage.today_all() if usage.persistent() else ledger.total.cost_usd
+    if total + worst > config.GLOBAL_BUDGET_USD:
         raise BudgetExceeded(f"Global budget ${config.GLOBAL_BUDGET_USD:.2f} reached.")
 
 
@@ -150,7 +157,10 @@ def ask(
     with _lock:
         c = _charge(ledger.session(session_id), model, resp.usage)
         _charge(ledger.total, model, resp.usage)
-        USAGE_FILE.write_text(json.dumps(ledger.total.as_dict()))
+        if usage.persistent():
+            usage.add(session_id, c, resp.usage.input_tokens or 0, resp.usage.output_tokens or 0)
+        else:
+            USAGE_FILE.write_text(json.dumps(ledger.total.as_dict()))
     if use_cache and text:
         path.write_text(json.dumps({"text": text}))
     return {"text": text, "model": model, "cost_usd": c, "cached": False}

@@ -52,7 +52,7 @@ def validate_settings(settings: dict) -> dict:
 
 def get(user: str) -> dict:
     with db.connect() as con:
-        r = con.execute("SELECT * FROM profiles WHERE user=?", (user,)).fetchone()
+        r = con.execute("SELECT * FROM profiles WHERE uid=?", (user,)).fetchone()
     if not r:
         return {"answers": {}, "settings": {"signoff_default": False}, "updated": None}
     return {"answers": json.loads(r["answers"]), "settings": {"signoff_default": False, **json.loads(r["settings"])}, "updated": r["updated"]}
@@ -64,8 +64,8 @@ def save(user: str, answers: dict | None, settings: dict | None, questions: list
     new_settings = {**cur["settings"], **(validate_settings(settings) if settings is not None else {})}
     now = time.time()
     with db.connect() as con:
-        con.execute("INSERT INTO profiles(user, answers, settings, created, updated) VALUES (?,?,?,?,?) "
-                    "ON CONFLICT(user) DO UPDATE SET answers=excluded.answers, settings=excluded.settings, updated=excluded.updated",
+        con.execute("INSERT INTO profiles(uid, answers, settings, created, updated) VALUES (?,?,?,?,?) "
+                    "ON CONFLICT(uid) DO UPDATE SET answers=excluded.answers, settings=excluded.settings, updated=excluded.updated",
                     (user, json.dumps(new_answers), json.dumps(new_settings), now, now))
         con.commit()
     return get(user)
@@ -73,7 +73,7 @@ def save(user: str, answers: dict | None, settings: dict | None, questions: list
 
 def delete(user: str) -> None:
     with db.connect() as con:
-        con.execute("DELETE FROM profiles WHERE user=?", (user,))
+        con.execute("DELETE FROM profiles WHERE uid=?", (user,))
         con.commit()
 
 

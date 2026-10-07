@@ -55,6 +55,7 @@ def _row(r) -> dict:
     for k in ("legal", "result", "warnings"):
         d[k] = json.loads(d[k] or ("{}" if k == "result" else "[]"))
     d.pop("token_hash", None)
+    d["user"] = d.pop("uid")  # the column is `uid` because USER is a reserved word in Postgres
     return d
 
 
@@ -86,9 +87,9 @@ def create(user: str, repo: str, number: int, title: str, consent: bool, signoff
     owner, name = repo.split("/")
     with db.connect() as con:
         _expire(con)
-        if con.execute("SELECT 1 FROM jobs WHERE user=? AND status IN (%s)" % ",".join("?" * len(ACTIVE)), (user, *ACTIVE)).fetchone():
+        if con.execute("SELECT 1 FROM jobs WHERE uid=? AND status IN (%s)" % ",".join("?" * len(ACTIVE)), (user, *ACTIVE)).fetchone():
             raise JobError("You already have a job in progress. Finish or cancel it first.", 409)
-        if con.execute("SELECT COUNT(*) FROM jobs WHERE user=? AND created > ?", (user, time.time() - 86400)).fetchone()[0] >= MAX_PER_DAY:
+        if con.execute("SELECT COUNT(*) FROM jobs WHERE uid=? AND created > ?", (user, time.time() - 86400)).fetchone()[0] >= MAX_PER_DAY:
             raise JobError(f"Daily limit reached ({MAX_PER_DAY} automated jobs). Quality beats volume.", 429)
 
     pol = github.policy_scan(owner, name)
@@ -102,7 +103,7 @@ def create(user: str, repo: str, number: int, title: str, consent: bool, signoff
     jid = uuid.uuid4().hex[:12]
     now = time.time()
     with db.connect() as con:
-        con.execute("INSERT INTO jobs(id,user,repo,number,title,status,stage,created,updated,token_hash,signoff,legal) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        con.execute("INSERT INTO jobs(id,uid,repo,number,title,status,stage,created,updated,token_hash,signoff,legal) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     (jid, user, repo, int(number), (title or "")[:300], "ready", "waiting for runner", now, now, _hash(token), int(bool(signoff)), json.dumps(pol["legal"])))
         _event(con, jid, "info", "Pre-flight checks passed: policy read, issue verified free.")
         con.commit()
@@ -112,7 +113,7 @@ def create(user: str, repo: str, number: int, title: str, consent: bool, signoff
 def get(user: str, job_id: str, since: int = 0) -> dict:
     with db.connect() as con:
         _expire(con)
-        r = con.execute("SELECT * FROM jobs WHERE id=? AND user=?", (job_id, user)).fetchone()
+        r = con.execute("SELECT * FROM jobs WHERE id=? AND uid=?", (job_id, user)).fetchone()
         if not r:
             raise JobError("No such job.", 404)
         ev = con.execute("SELECT id, ts, kind, text FROM events WHERE job_id=? AND id>? ORDER BY id", (job_id, since)).fetchall()
@@ -122,7 +123,7 @@ def get(user: str, job_id: str, since: int = 0) -> dict:
 def list_for(user: str) -> list[dict]:
     with db.connect() as con:
         _expire(con)
-        rows = con.execute("SELECT * FROM jobs WHERE user=? ORDER BY created DESC LIMIT 20", (user,)).fetchall()
+        rows = con.execute("SELECT * FROM jobs WHERE uid=? ORDER BY created DESC LIMIT 20", (user,)).fetchall()
     out = []
     for r in rows:
         d = _row(r)
@@ -133,7 +134,7 @@ def list_for(user: str) -> list[dict]:
 
 def approve(user: str, job_id: str, pr_title: str, pr_body: str, cla_confirmed: bool) -> dict:
     with db.connect() as con:
-        r = con.execute("SELECT * FROM jobs WHERE id=? AND user=?", (job_id, user)).fetchone()
+        r = con.execute("SELECT * FROM jobs WHERE id=? AND uid=?", (job_id, user)).fetchone()
         if not r:
             raise JobError("No such job.", 404)
         job = _row(r)
@@ -156,7 +157,7 @@ def approve(user: str, job_id: str, pr_title: str, pr_body: str, cla_confirmed: 
 
 def cancel(user: str, job_id: str) -> dict:
     with db.connect() as con:
-        r = con.execute("SELECT * FROM jobs WHERE id=? AND user=?", (job_id, user)).fetchone()
+        r = con.execute("SELECT * FROM jobs WHERE id=? AND uid=?", (job_id, user)).fetchone()
         if not r:
             raise JobError("No such job.", 404)
         job = _row(r)
@@ -171,10 +172,10 @@ def cancel(user: str, job_id: str) -> dict:
 def delete_all(user: str) -> int:
     """Remove every job and event for a student (used by 'delete my data'). Any live job is cancelled first so a runner stops."""
     with db.connect() as con:
-        ids = [r[0] for r in con.execute("SELECT id FROM jobs WHERE user=?", (user,)).fetchall()]
+        ids = [r[0] for r in con.execute("SELECT id FROM jobs WHERE uid=?", (user,)).fetchall()]
         for i in ids:
             con.execute("DELETE FROM events WHERE job_id=?", (i,))
-        con.execute("DELETE FROM jobs WHERE user=?", (user,))
+        con.execute("DELETE FROM jobs WHERE uid=?", (user,))
         con.commit()
     return len(ids)
 

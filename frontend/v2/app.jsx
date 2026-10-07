@@ -68,6 +68,7 @@ export default function App() {
   const [discLoading, setDiscLoading] = React.useState(false);
   const [discError, setDiscError] = React.useState('');
   const [org, setOrg] = React.useState(null);
+  const [health, setHealth] = React.useState(null);
   const [profile, setProfile] = React.useState(null);
   const [profErr, setProfErr] = React.useState('');
   const [profNote, setProfNote] = React.useState('');
@@ -108,6 +109,7 @@ export default function App() {
   // boot
   React.useEffect(() => {
     (async () => {
+      try { const h = await api('/api/health'); setHealth(h); if (h.configured === false) return; } catch {}
       try { setMe(await api('/api/me')); } catch {}
       try { const o = await api('/api/orgs'); setOrgs(o); if (window.Scene) Scene.init(o); } catch {}
       try { setCatStatus(await api('/api/catalogue/status')); } catch {}
@@ -269,6 +271,21 @@ export default function App() {
     await api('/api/replies/send', { pr_url: prUrl.trim(), items: [{ id: d.id, source: d.source, reply: text }], disclose: true });
     setDrafts({ ...drafts, drafts: drafts.drafts.filter((x) => x.id !== d.id) });
   });
+
+  if (health && health.configured === false) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-6 py-16">
+        <p className="text-sm font-bold uppercase tracking-[0.2em] text-sky-300">OSS Mentor</p>
+        <h1 className="mt-3 text-6xl leading-[0.95] text-white md:text-7xl">This site is almost ready.</h1>
+        <p className="mt-5 text-lg text-zinc-300">The owner still has to finish setting it up. Until then the app stays switched off on purpose, so nobody can use its API keys without signing in.</p>
+        <div className="mt-8 rounded-3xl border border-white/10 bg-zinc-950/80 p-6">
+          <p className="text-xs font-black uppercase tracking-widest text-zinc-500">Owner: still missing</p>
+          <ul className="mt-3 space-y-2 text-sm text-zinc-200">{health.missing.map((m) => <li key={m}>• {m}</li>)}</ul>
+          <p className="mt-4 text-xs text-zinc-500">Add them as environment variables in your Vercel project, then redeploy. See docs/DEPLOY_VERCEL.md.</p>
+        </div>
+      </main>
+    );
+  }
 
   const q = qs[qi];
   const pill = usage ? `$${usage.session.cost_usd.toFixed(3)} / $${usage.session_budget_usd.toFixed(2)}` : null;

@@ -1,9 +1,10 @@
 import json
+import time
 from types import SimpleNamespace
 
 import pytest
 
-from backend import config, llm, matcher, replier
+from backend import config, db, llm, matcher, replier, usage
 
 
 def fake_resp(text="ok", inp=1000, out=100, cr=0, cw=0):
@@ -120,7 +121,7 @@ def test_send_needs_token(monkeypatch):
 def test_send_appends_disclosure_and_records(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "AUTO_POST_REPLIES", True)
     monkeypatch.setattr(config, "GITHUB_TOKEN", "t")
-    monkeypatch.setattr(replier, "STATE", tmp_path / "r.json")
+    monkeypatch.setattr(db, "PATH", tmp_path / "r.db"); db._ready.clear()
     monkeypatch.setattr(replier, "_ai_flags", lambda o, r: [])
     posted = []
     monkeypatch.setattr(replier.github, "post", lambda path, body, token=None: posted.append((path, body)))
@@ -128,7 +129,8 @@ def test_send_appends_disclosure_and_records(monkeypatch, tmp_path):
                  [{"id": 5, "source": "review", "reply": "Fixed."}, {"id": 6, "source": "issue", "reply": ""}])
     assert len(posted) == 1 and posted[0][0].endswith("/pulls/1/comments/5/replies")
     assert config.AI_DISCLOSURE in posted[0][1]["body"]
-    assert json.loads((tmp_path / "r.json").read_text())["o/r#1"]["handled"] == [5]
+    assert replier._handled("local", "o/r#1") == {5}          # remembered, per student
+    assert replier._handled("someone-else", "o/r#1") == set()
 
 
 # ---- github failure must never look like "no policy found"
@@ -199,7 +201,7 @@ def test_cross_origin_post_blocked(monkeypatch):
 def test_usage_is_per_user(monkeypatch):
     c, _ = _hosted(monkeypatch)
     monkeypatch.setattr(llm, "ledger", llm.Ledger())
-    llm.ledger.session("alice").cost_usd = 0.2
+    usage.add("alice", 0.2, 10, 10) if usage.persistent() else setattr(llm.ledger.session("alice"), "cost_usd", 0.2)
     a = c.get("/api/usage", cookies={"oss_session": "sidA"}).json()["session"]["cost_usd"]
     b = c.get("/api/usage", cookies={"oss_session": "sidB"}).json()["session"]["cost_usd"]
     assert (a, b) == (0.2, 0)
@@ -545,3 +547,23 @@ def test_refresh_keeps_catalogue_when_enrichment_blows_up(monkeypatch, tmp_path)
     monkeypatch.setattr(c, "enrich", boom)
     res = c.refresh(enrich_github=True, log=lambda *_: None)
     assert res["entries"] == 1 and json.loads((tmp_path / "catalogue.json").read_text())["entries"][0]["rated"] == "auto"
+
+
+def test_lfx_retries_a_flaky_page_and_keeps_partial_results(monkeypatch):
+    import httpx
+    from backend import catalogue as c
+    monkeypatch.setattr(c.time, "sleep", lambda *_: None)
+    def proj(n): return {"status": "Published", "name": f"P{n}", "lfProjectName": "LF", "repoLink": f"https://github.com/lf/r{n}", "industry": "Cloud",
+                         "programTerms": [{"endDateTime": time.time() + 1000}]}
+    calls = {"n": 0}
+    def fake(url, params=None, timeout=60):
+        calls["n"] += 1
+        key = (params or {}).get("nextPageKey")
+        if key is None: return {"projects": [proj(1)], "nextPageKey": "k2"}
+        if key == "k2":
+            if calls["n"] == 2: raise httpx.ConnectError("reset")          # flaky once, then fine
+            return {"projects": [proj(2)], "nextPageKey": "k3"}
+        raise httpx.ConnectError("down for good")                          # page 3 never works
+    monkeypatch.setattr(c, "get_json", fake)
+    out = c.fetch_lfx(log=lambda *_: None)
+    assert sorted(e["repo"] for e in out) == ["lf/r1", "lf/r2"] and all(e["lfx"] for e in out)   # kept pages 1-2 despite the failure

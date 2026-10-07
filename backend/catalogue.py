@@ -25,7 +25,8 @@ import httpx
 
 from . import config
 
-FILE = config.DATA / "catalogue.json"
+FILE = config.DATA / "catalogue.json"                          # runtime copy (local use)
+SNAPSHOT = config.ROOT / "mentor" / "catalogue_snapshot.json"   # committed copy, shipped with a deployment (read-only hosts)
 UA = {"User-Agent": "oss-mentor/1.0 (open-source onboarding tool; catalogue refresh)"}
 STALE_AFTER_DAYS = 7
 _lock = threading.Lock()
@@ -150,12 +151,26 @@ def fetch_gsoc(year: int) -> tuple[list[dict], list[str]]:
     return out, unresolved
 
 
-def fetch_lfx(max_pages: int = 120) -> list[dict]:
+def _page(base: str, key: str | None, log=print) -> dict | None:
+    """One LFX page with retries. None = this page is unavailable (the caller keeps what it already has)."""
+    for attempt in range(4):
+        try:
+            return get_json(base, {"nextPageKey": key} if key else None, timeout=40)
+        except (httpx.HTTPError, ValueError) as ex:
+            log(f"  lfx page failed (attempt {attempt + 1}): {type(ex).__name__}")
+            time.sleep(1.5 * (attempt + 1))
+    return None
+
+
+def fetch_lfx(max_pages: int = 120, log=print) -> list[dict]:
     base = "https://api.mentorship.lfx.linuxfoundation.org/projects"
     key, seen, pages = None, {}, 0
     cutoff = time.time() - 2 * 365 * 86400
     while pages < max_pages:
-        d = get_json(base, {"nextPageKey": key} if key else None, timeout=40)
+        d = _page(base, key, log)
+        if d is None:
+            log(f"  lfx: giving up after {pages} pages; keeping {len(seen)} projects found so far")
+            break  # a flaky API must not cost us the pages we already have
         for p in d.get("projects", []):
             if p.get("status") != "Published":
                 continue
@@ -349,7 +364,7 @@ def merge_into(base: dict, new: dict) -> None:
             base[f] = new[f]
 
 
-def refresh(enrich_github: bool = True, log=print) -> dict:
+def refresh(enrich_github: bool = True, log=print, target: Path | None = None) -> dict:
     """Fetch all sources, merge, enrich, write data/catalogue.json. Safe to call from a thread."""
     if not _lock.acquire(blocking=False):
         return {"skipped": "already refreshing"}
@@ -399,11 +414,12 @@ def refresh(enrich_github: bool = True, log=print) -> dict:
         for e in entries:
             rate(e)
         doc = {"generated_at": now(), "counts": counts, "errors": errors, "unresolved_gsoc": sorted(set(unresolved)), "entries": entries}
-        tmp = FILE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(doc))
-        tmp.replace(FILE)
+        out = target or FILE
+        tmp = out.with_suffix(".tmp")
+        tmp.write_text(json.dumps(doc) if target is None else json.dumps(doc, separators=(",", ":")))
+        tmp.replace(out)
         _cached.clear()
-        log(f"wrote {len(entries)} entries to {FILE}")
+        log(f"wrote {len(entries)} entries to {out}")
         return {"entries": len(entries), "counts": counts, "errors": errors}
     except Exception as ex:
         STATE["last_error"] = str(ex)[:300]
@@ -418,14 +434,19 @@ def refresh(enrich_github: bool = True, log=print) -> dict:
 _cached: dict = {}
 
 
+def _source() -> Path:
+    return FILE if FILE.exists() else SNAPSHOT
+
+
 def load() -> dict | None:
+    p = _source()
     try:
-        m = FILE.stat().st_mtime
+        m = (str(p), p.stat().st_mtime)
     except OSError:
         return None
     if _cached.get("m") != m:
         try:
-            _cached.update(m=m, doc=json.loads(FILE.read_text()))
+            _cached.update(m=m, doc=json.loads(p.read_text()))
         except (OSError, ValueError):
             return None
     return _cached["doc"]
@@ -443,13 +464,15 @@ def status() -> dict:
 
 def maybe_refresh_in_background() -> None:
     """Called at server start: refresh when missing or older than a week. Never blocks startup."""
+    if config.PUBLIC_DEPLOY:
+        return  # serverless hosts cannot persist a refresh; the weekly GitHub Action updates the committed snapshot instead
     if status()["stale"] and not STATE["refreshing"]:
         threading.Thread(target=lambda: refresh(True, log=lambda *_: None), daemon=True, name="catalogue-refresh").start()
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "refresh":
-        out = refresh(enrich_github="--fast" not in sys.argv)
+        out = refresh(enrich_github="--fast" not in sys.argv, target=SNAPSHOT if "--snapshot" in sys.argv else None)
         print(json.dumps(out, indent=1))
     else:
         print(json.dumps(status(), indent=1))
