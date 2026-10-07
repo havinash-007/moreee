@@ -20,6 +20,7 @@ async function api(path, body) {
   const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
   const j = await r.json().catch(() => ({ error: 'Bad response from server' }));
   if (r.status === 401) { const e = new Error('login'); e.login = true; throw e; }
+  if (r.status === 404 && j.detail === 'Not Found') { const e = new Error('The server is older than this page. Restart it with ./run.sh and reload.'); e.kind = 'stale'; throw e; }
   if (!r.ok) { const e = new Error(FRIENDLY[j.kind] || j.error || j.detail || 'Something went wrong'); e.kind = j.kind; throw e; }
   return j;
 }
@@ -105,6 +106,9 @@ export default function App() {
       refreshUsage();
     })();
   }, []);
+
+  // an error belongs to the screen it happened on: clear it when the student moves on
+  React.useEffect(() => { setError(''); }, [view, step]);
 
   // browse: refetch whenever the filters change
   React.useEffect(() => {

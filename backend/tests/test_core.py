@@ -497,3 +497,51 @@ def test_refresh_endpoint_requires_admin_when_hosted(monkeypatch):
     c, _ = _hosted(monkeypatch)
     monkeypatch.setenv("ADMIN_LOGINS", "someoneelse")
     assert c.post("/api/catalogue/refresh", cookies={"oss_session": "sidA"}).status_code == 403
+
+
+def test_enrich_retries_flaky_github_and_survives_html_reply(monkeypatch):
+    import httpx
+    from backend import catalogue as c
+    monkeypatch.setattr(c.config, "GITHUB_TOKEN", "t")
+    monkeypatch.setattr(c.time, "sleep", lambda *_: None)
+    e = c.entry("P", "o", "o/p")
+    calls = []
+
+    class R:
+        def __init__(self, code, body): self.status_code, self._b = code, body
+        def json(self):
+            if self._b is None: raise ValueError("Expecting value")
+            return self._b
+
+    seq = [httpx.ConnectError("reset"), R(502, None), R(200, {"data": {"a0": {"issueCount": 7}, "r0": {"stargazerCount": 123, "pushedAt": "2026-10-01T00:00:00Z", "primaryLanguage": {"name": "Go"}, "isArchived": False}}})]
+    def fake_post(*a, **k):
+        calls.append(1); x = seq[len(calls) - 1]
+        if isinstance(x, Exception): raise x
+        return x
+    monkeypatch.setattr(c.httpx, "post", fake_post)
+    c.enrich([e], log=lambda *_: None)
+    assert len(calls) == 3 and e["gfi"] == 7 and e["stars"] == 123 and e["languages"] == ["Go"]
+
+
+def test_enrich_marks_missing_and_archived_repos_dead(monkeypatch):
+    from backend import catalogue as c
+    monkeypatch.setattr(c.config, "GITHUB_TOKEN", "t"); monkeypatch.setattr(c.time, "sleep", lambda *_: None)
+    gone, old = c.entry("Gone", "o", "o/gone"), c.entry("Old", "o", "o/old")
+    class R:
+        status_code = 200
+        def json(self): return {"data": {"a0": {"issueCount": 0}, "r0": None, "a1": {"issueCount": 0}, "r1": {"stargazerCount": 1, "pushedAt": None, "primaryLanguage": None, "isArchived": True}}}
+    monkeypatch.setattr(c.httpx, "post", lambda *a, **k: R())
+    c.enrich([gone, old], log=lambda *_: None)
+    assert gone.get("dead") and old.get("dead")
+
+
+def test_refresh_keeps_catalogue_when_enrichment_blows_up(monkeypatch, tmp_path):
+    from backend import catalogue as c
+    monkeypatch.setattr(c, "FILE", tmp_path / "catalogue.json")
+    ok = lambda: [c.entry("Proj", "owner", "owner/proj", languages=["Go"], domains=["devtools"], sources=["apache"], apache=True)]
+    for n in ("fetch_lfx", "fetch_cncf", "fetch_beginner_list"): monkeypatch.setattr(c, n, lambda *a, **k: [])
+    monkeypatch.setattr(c, "fetch_gsoc", lambda y: ([], [])); monkeypatch.setattr(c, "fetch_apache", ok)
+    def boom(*a, **k): raise RuntimeError("graphql down")
+    monkeypatch.setattr(c, "enrich", boom)
+    res = c.refresh(enrich_github=True, log=lambda *_: None)
+    assert res["entries"] == 1 and json.loads((tmp_path / "catalogue.json").read_text())["entries"][0]["rated"] == "auto"

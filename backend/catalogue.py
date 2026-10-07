@@ -248,6 +248,9 @@ def fetch_beginner_list() -> list[dict]:
     return out
 
 
+BATCH = 10  # smaller GraphQL batches are less likely to be reset or rate-limited
+
+
 # ---------------------------------------------------------------- enrichment: free-issue counts (+ stars/language) from GitHub GraphQL
 def enrich(entries: list[dict], log=print) -> None:
     token = config.GITHUB_TOKEN
@@ -255,8 +258,8 @@ def enrich(entries: list[dict], log=print) -> None:
         log("  no GitHub token: skipping enrichment")
         return
     todo = [e for e in entries if e["gfi"] is None]
-    for i in range(0, len(todo), 20):
-        batch = todo[i:i + 20]
+    for i in range(0, len(todo), BATCH):
+        batch = todo[i:i + BATCH]
         parts = []
         for j, e in enumerate(batch):
             scope = f"repo:{e['repo']}" if e["repo"] else f"user:{e['github']}"
@@ -265,12 +268,20 @@ def enrich(entries: list[dict], log=print) -> None:
             if e["repo"]:
                 o, r = e["repo"].split("/")
                 parts.append(f'r{j}: repository(owner: "{o}", name: "{r}") {{ stargazerCount pushedAt primaryLanguage {{ name }} isArchived }}')
-        try:
-            res = httpx.post("https://api.github.com/graphql", json={"query": "{ " + " ".join(parts) + " }"},
-                             headers={"Authorization": f"Bearer {token}", **UA}, timeout=60).json()
-        except httpx.HTTPError as ex:
-            log(f"  enrichment batch failed: {ex}")
-            continue
+        res = None
+        for attempt in range(3):  # GitHub sometimes resets the connection or answers with HTML under load: retry, then move on
+            try:
+                resp = httpx.post("https://api.github.com/graphql", json={"query": "{ " + " ".join(parts) + " }"},
+                                  headers={"Authorization": f"Bearer {token}", **UA}, timeout=60)
+                if resp.status_code != 200:
+                    raise ValueError(f"HTTP {resp.status_code}")
+                res = resp.json()
+                break
+            except (httpx.HTTPError, ValueError) as ex:
+                log(f"  enrichment batch {i // BATCH + 1} attempt {attempt + 1} failed: {type(ex).__name__}")
+                time.sleep(2 * (attempt + 1))
+        if not res:
+            continue  # leave this batch un-enriched; entries keep their defaults
         data = res.get("data") or {}
         for j, e in enumerate(batch):
             a = data.get(f"a{j}")
@@ -287,7 +298,7 @@ def enrich(entries: list[dict], log=print) -> None:
                     e["languages"] = [LANG[pl.lower()]]
                 if r.get("isArchived"):
                     e["dead"] = True
-        STATE["progress"] = f"enriching {min(i + 20, len(todo))}/{len(todo)}"
+        STATE["progress"] = f"enriching {min(i + BATCH, len(todo))}/{len(todo)}"
         time.sleep(1.0)
 
 
@@ -377,7 +388,10 @@ def refresh(enrich_github: bool = True, log=print) -> dict:
         entries = list(merged.values())
         if enrich_github:
             log("  enriching with GitHub (free-issue counts, stars)…")
-            enrich(entries, log)
+            try:
+                enrich(entries, log)
+            except Exception as ex:  # enrichment is a bonus: never lose the fetched catalogue because of it
+                log(f"  enrichment aborted: {type(ex).__name__}: {ex}")
         dead = [e["name"] for e in entries if e.get("dead")]
         entries = [e for e in entries if not e.get("dead")]
         if dead:

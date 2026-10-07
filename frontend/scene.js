@@ -76,6 +76,7 @@
   // Depth-of-field: blur the 3D layer (and its labels) behind content so text stays readable.
   Scene.setBlur = function (px) {
     if (!Scene.available) return;
+    Scene.noHover = px > 0; if (px > 0 && tip) tip.style.opacity = 0;  // no planet tooltips over a blurred backdrop
     const v = px ? `blur(${px}px) saturate(1.1)` : 'none', sc = px ? 'scale(1.05)' : 'none';
     [canvas, labelBox].forEach((el) => { el.style.transition = 'filter .6s ease, transform .6s ease'; el.style.filter = v; el.style.transform = sc; });
   };
@@ -133,7 +134,7 @@
     // hover
     ray.setFromCamera({ x: ptr.x, y: ptr.y }, camera);
     const hit = ray.intersectObjects(nodes.map(n => n.mesh), false)[0];
-    const h = hit ? nodes.find(n => n.mesh === hit.object) : null;
+    const h = hit && !Scene.noHover ? nodes.find(n => n.mesh === hit.object) : null;
     if (h !== hovered) { hovered = h; canvas.style.cursor = h && stage !== 'working' ? (stage === 'ranked' && focus.includes(h.org.name) ? 'pointer' : 'grab') : 'default'; showTip(h); }
 
     nodes.forEach(n => {
