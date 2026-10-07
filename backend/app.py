@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, auth, config, llm, matcher, replier
+from . import agents, auth, catalogue, config, llm, matcher, replier
 
 app = FastAPI(title="oss-mentor")
 app.include_router(auth.router)
@@ -130,10 +130,84 @@ def health():
             "session_budget_usd": config.SESSION_BUDGET_USD}
 
 
+@app.on_event("startup")
+def _startup():
+    if os.getenv("CATALOGUE_AUTO_REFRESH", "true").lower() == "true":
+        catalogue.maybe_refresh_in_background()  # never blocks startup; no-op when the file is fresh
+
+
 @app.get("/api/orgs")
 def orgs():
-    """Public catalogue for the 3D galaxy (no secrets, no user data)."""
-    return [{k: o[k] for k in ("name", "github", "languages", "domains", "beginner", "notes")} for o in matcher.catalogue()]
+    """Featured set for the 3D galaxy (curated + this year's GSoC organisations). The matcher scores the whole catalogue."""
+    seen, out = set(), []
+    this_year = __import__("datetime").datetime.now().year
+    for o in matcher.catalogue():
+        if not (o.get("rated") == "curated" or this_year in o.get("gsoc_years", [])):
+            continue
+        k = o["name"].lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append({k2: o.get(k2) for k2 in ("name", "github", "repo", "languages", "domains", "beginner", "notes")} |
+                   {"sources": o.get("sources", []), "gsoc": bool(o.get("gsoc_years")), "lfx": bool(o.get("lfx"))})
+        if len(out) >= 300:
+            break
+    return out
+
+
+@app.get("/api/catalogue/status")
+def catalogue_status():
+    st = catalogue.status()
+    st["size"] = len(matcher.catalogue())
+    st["curated"] = len(matcher.curated())
+    return st
+
+
+@app.get("/api/catalogue/browse")
+def catalogue_browse(q: str = "", source: str = "", language: str = "", domain: str = "", page: int = 1, size: int = 24):
+    """Search and filter every organisation we know about. Facet counts reflect the current filters."""
+    size = max(1, min(size, 60))
+    ql = q.lower().strip()
+
+    def match(o, skip=()):
+        if ql and ql not in (o["name"] + " " + (o.get("notes") or "") + " " + (o.get("repo") or o["github"])).lower():
+            return False
+        if "source" not in skip and source and not (source in o.get("sources", []) or (source == "gsoc" and o.get("gsoc_years")) or (source == "lfx" and o.get("lfx")) or (source == "cncf" and o.get("cncf")) or (source == "apache" and o.get("apache"))):
+            return False
+        if "language" not in skip and language and language not in o["languages"]:
+            return False
+        if "domain" not in skip and domain and domain not in o["domains"]:
+            return False
+        return True
+
+    allo = matcher.catalogue()
+    hits = [o for o in allo if match(o)]
+    hits.sort(key=lambda o: (o.get("rated") != "curated", -(o.get("gfi") or 0), -(o.get("stars") or 0)))
+    start = (max(page, 1) - 1) * size
+
+    def facet(vals, skip):
+        c = {}
+        for o in allo:
+            if match(o, skip=(skip,)):
+                for v in vals(o):
+                    c[v] = c.get(v, 0) + 1
+        return dict(sorted(c.items(), key=lambda kv: -kv[1])[:25])
+
+    cols = ("name", "github", "repo", "languages", "domains", "notes", "sources", "gsoc_years", "lfx", "cncf", "apache", "stars", "gfi", "url", "ideas_url", "rated")
+    return {"total": len(hits), "page": page, "size": size, "items": [{k: o.get(k) for k in cols} for o in hits[start:start + size]],
+            "facets": {"language": facet(lambda o: o["languages"], "language"), "domain": facet(lambda o: o["domains"], "domain"),
+                       "source": facet(lambda o: ([s for s in ("gsoc", "lfx", "cncf", "apache") if (o.get(s) or (s == "gsoc" and o.get("gsoc_years")))] + (["curated"] if o.get("rated") == "curated" else []) + (["beginner-list"] if "beginner-list" in o.get("sources", []) else [])), "source")}}
+
+
+@app.post("/api/catalogue/refresh")
+def catalogue_refresh(user: auth.User = Depends(auth.require_user)):
+    admins = {a.strip().lower() for a in os.getenv("ADMIN_LOGINS", "").split(",") if a.strip()}
+    if auth.hosted() and user.login.lower() not in admins:
+        raise PermissionError("Only an operator can refresh the catalogue.")
+    import threading
+    if not catalogue.STATE["refreshing"]:
+        threading.Thread(target=lambda: catalogue.refresh(True, log=lambda *_: None), daemon=True).start()
+    return catalogue.status()
 
 
 @app.get("/api/questions")

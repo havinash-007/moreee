@@ -253,11 +253,12 @@ def test_orgs_endpoint_is_public_and_minimal(monkeypatch):
     c, _ = _hosted(monkeypatch)
     r = c.get("/api/orgs")  # no login: the 3D galaxy must render before sign-in
     assert r.status_code == 200 and len(r.json()) >= 10
-    assert set(r.json()[0]) == {"name", "github", "languages", "domains", "beginner", "notes"}
+    assert {"name", "github", "languages", "domains", "beginner", "notes"} <= set(r.json()[0])
+    assert not any(k in r.json()[0] for k in ("token", "secret", "legal"))
 
 
-def test_catalogue_is_large_and_well_formed():
-    cat = matcher.catalogue()
+def test_curated_catalogue_is_large_and_well_formed():
+    cat = matcher.curated()
     assert len(cat) >= 100
     names = [o["name"] for o in cat]
     logins = [o["github"].lower() for o in cat]
@@ -269,7 +270,7 @@ def test_catalogue_is_large_and_well_formed():
 
 def test_every_quiz_interest_and_language_has_orgs():
     from backend.app import QUESTIONS
-    cat = matcher.catalogue()
+    cat = matcher.curated()
     for q in QUESTIONS:
         if q["id"] == "interests":
             for v, _ in q["options"]:
@@ -281,7 +282,7 @@ def test_every_quiz_interest_and_language_has_orgs():
 
 def test_rank_all_returns_runner_ups_without_gated(monkeypatch):
     top, others = matcher.rank_all({**PROFILE, "legal": "dco"})
-    assert len(top) == 3 and 1 <= len(others) <= 12
+    assert len(top) == 3 and 1 <= len(others) <= 24
     assert all(not o["gate"] for o in others) and not {t["org"] for t in top} & {o["org"] for o in others}
 
 
@@ -406,3 +407,93 @@ def test_scout_drops_issues_with_open_prs_and_counts_them(monkeypatch):
     res = agents.scout("acme", {"mode": "learn"}, "s")
     assert [p["number"] for p in res["picks"]] == [3]
     assert res["stats"]["claimed"] == 1 and res["stats"]["has_pr"] == 1 and res["picks"][0]["verified_at"].startswith("2026-10-07")
+
+
+# ---- live catalogue pipeline
+def test_txt_coerces_odd_feed_fields():
+    from backend.catalogue import txt
+    assert txt({"a": "hello", "b": 3}) == "hello" and txt(["x", "y"]) == "x y" and txt(None) == "" and len(txt("z" * 500)) == 160
+
+
+def test_top_langs_sorts_by_size_and_drops_non_languages():
+    from backend.catalogue import top_langs
+    assert top_langs({"Makefile": 9, "Go": 900, "Mermaid": 5, "Python": 50, "Shell": 800, "HTML": 700}) == ["Go", "Python"]
+    assert top_langs([{"name": "Rust"}, {"name": "CSS"}]) == ["Rust"]
+
+
+def test_gh_ref_variants():
+    from backend.catalogue import gh_ref
+    assert gh_ref("https://github.com/sugarlabs") == ("sugarlabs", None)
+    assert gh_ref("x", "https://github.com/orgs/meshery/people") == ("meshery", None)  # /orgs/ prefix is not the owner
+    assert gh_ref("https://github.com/apache/airflow.git") == ("apache", "airflow")
+    assert gh_ref("https://git.libssh.org/projects/libssh.git") is None
+
+
+def test_apache_gitbox_urls_map_to_github_mirror(monkeypatch):
+    from backend import catalogue as c
+    monkeypatch.setattr(c, "get_json", lambda *a, **k: {
+        "spark": {"name": "Apache Spark", "repository": ["https://gitbox.apache.org/repos/asf/spark.git"], "category": ["big-data"], "programming-language": ["Scala"]},
+        "other": {"name": "NoRepo", "repository": ["https://svn.apache.org/repos/asf/other"], "category": []}})
+    out = c.fetch_apache()
+    assert [e["repo"] for e in out] == ["apache/spark"] and out[0]["apache"] and "ai-ml-data" in out[0]["domains"]
+
+
+def test_rate_is_bounded_and_rewards_mentoring_and_free_issues():
+    from backend.catalogue import entry, rate
+    plain = rate(entry("a", "a", "a/a", languages=["Python"], stars=100))
+    mentored = rate(entry("b", "b", "b/b", languages=["Python"], gsoc_years=[2026], gfi=20, stars=100))
+    assert 1 <= plain["beginner"] <= 5 and mentored["beginner"] > plain["beginner"] and mentored["beginner"] <= 5
+    assert mentored["rated"] == "auto" and mentored["gsoc"] is True
+    assert rate(entry("c", "c", "c/c", languages=["C++"], stars=9000))["setup"] == "heavy"
+
+
+def test_refresh_survives_a_broken_source_and_never_writes_empty(monkeypatch, tmp_path):
+    from backend import catalogue as c
+    monkeypatch.setattr(c, "FILE", tmp_path / "catalogue.json")
+    good = lambda: [c.entry("Proj", "owner", "owner/proj", languages=["Go"], domains=["cloud-devops"], sources=["apache"], apache=True)]
+    def boom(*a, **k): raise RuntimeError("feed down")
+    monkeypatch.setattr(c, "fetch_gsoc", lambda y: boom())
+    monkeypatch.setattr(c, "fetch_lfx", boom); monkeypatch.setattr(c, "fetch_cncf", boom)
+    monkeypatch.setattr(c, "fetch_apache", good); monkeypatch.setattr(c, "fetch_beginner_list", boom)
+    res = c.refresh(enrich_github=False, log=lambda *_: None)
+    assert res["entries"] == 1 and "cncf" in res["errors"] and "lfx" in res["errors"]
+    doc = json.loads((tmp_path / "catalogue.json").read_text())
+    assert doc["entries"][0]["rated"] == "auto"
+    # everything failing keeps the previous file instead of overwriting it with nothing
+    for n in ("fetch_apache",): monkeypatch.setattr(c, n, boom)
+    assert "error" in c.refresh(enrich_github=False, log=lambda *_: None)
+    assert json.loads((tmp_path / "catalogue.json").read_text())["entries"]
+
+
+def test_matcher_merges_live_entries_without_overriding_curated(monkeypatch):
+    from backend import catalogue as c
+    doc = {"entries": [
+        c.entry("Zulip", "zulip", None, gsoc_years=[2026], sources=["gsoc2026"], languages=["Python"], domains=["web"], notes="live note", rated="auto", beginner=1),
+        c.entry("Brand New Project", "newowner", "newowner/new", languages=["Go"], domains=["cloud-devops"], rated="auto", beginner=3, hackathon=3, setup="medium", gsoc=False, legal="varies", brand=2)]}
+    monkeypatch.setattr(c, "load", lambda: doc)
+    matcher._merged.clear()
+    cat = matcher.catalogue()
+    z = next(o for o in cat if o["name"] == "Zulip")
+    assert z["beginner"] == 5 and z["rated"] == "curated" and z["gsoc_years"] == [2026]   # curated rating kept, badge added
+    assert any(o["name"] == "Brand New Project" for o in cat)
+    assert sum(1 for o in cat if o["name"] == "Zulip") == 1
+    matcher._merged.clear()
+
+
+def test_browse_filters_facets_and_paging(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    fake = [{"name": f"P{i}", "github": f"o{i}", "repo": f"o{i}/r", "languages": ["Python" if i % 2 else "Go"], "domains": ["web"], "notes": "n",
+             "sources": ["apache" if i % 3 == 0 else "lfx"], "gsoc_years": [], "lfx": i % 3 != 0, "cncf": None, "apache": i % 3 == 0, "stars": i, "gfi": i, "url": "", "ideas_url": "", "rated": "auto"} for i in range(30)]
+    monkeypatch.setattr(matcher, "catalogue", lambda: fake)
+    r = c.get("/api/catalogue/browse?language=Python&source=apache&size=5").json()
+    assert r["total"] == 5 and all(i["languages"] == ["Python"] and i["apache"] for i in r["items"])
+    assert c.get("/api/catalogue/browse?size=7&page=2").json()["items"][0]["name"] != c.get("/api/catalogue/browse?size=7&page=1").json()["items"][0]["name"]
+    assert r["facets"]["language"]["Python"] == 5
+    assert c.get("/api/catalogue/browse?q=p1&size=60").json()["total"] >= 1
+    assert c.get("/api/catalogue/status").status_code == 200
+
+
+def test_refresh_endpoint_requires_admin_when_hosted(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    monkeypatch.setenv("ADMIN_LOGINS", "someoneelse")
+    assert c.post("/api/catalogue/refresh", cookies={"oss_session": "sidA"}).status_code == 403

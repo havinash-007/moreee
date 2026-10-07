@@ -17,6 +17,15 @@ const PHRASE = {
   setup: 'your machine',
 };
 
+function badges(o) {
+  const b = [];
+  (o.gsoc_years || []).slice().sort().slice(-1).forEach((y) => b.push([`GSoC ${y}`, 'bg-sky-400/15 text-sky-200']));
+  if (o.lfx) b.push(['LFX Mentorship', 'bg-cyan-400/15 text-cyan-200']);
+  if (o.cncf && o.cncf !== 'landscape') b.push([`CNCF ${o.cncf}`, 'bg-emerald-400/15 text-emerald-200']);
+  if (o.apache) b.push(['Apache', 'bg-orange-400/15 text-orange-200']);
+  return b;
+}
+
 function why(parts) {
   const sorted = Object.entries(parts).sort((a, b) => b[1] - a[1]);
   const best = sorted.slice(0, 2).map(([k]) => PHRASE[k]);
@@ -94,6 +103,7 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
               <p className="text-base font-semibold leading-snug text-zinc-200">{why(m.parts)}</p>
               <p className="mt-2 text-sm text-zinc-400">{m.notes}</p>
               <div className="mt-4 flex flex-wrap gap-2">
+                {badges(m).map(([t, c]) => <span key={t} className={`rounded-full px-3 py-1 text-xs font-bold ${c}`}>{t}</span>)}
                 {m.languages.slice(0, 4).map((l) => (
                   <span key={l} className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-zinc-200">{l}</span>
                 ))}

@@ -47,7 +47,7 @@ async function streamScout(body, onStep) {
 }
 
 export default function App() {
-  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress } = window.OSS;
+  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress, BrowseCatalogue } = window.OSS;
   const [view, setView] = React.useState('mentor');
   const [step, setStep] = React.useState('hero');
   const [me, setMe] = React.useState({ hosted: false, login: 'local' });
@@ -62,6 +62,10 @@ export default function App() {
   const [discLoading, setDiscLoading] = React.useState(false);
   const [discError, setDiscError] = React.useState('');
   const [org, setOrg] = React.useState(null);
+  const [catStatus, setCatStatus] = React.useState(null);
+  const [bFilters, setBFilters] = React.useState({ q: '', source: '', language: '', domain: '', page: 1 });
+  const [bData, setBData] = React.useState(null);
+  const [bLoading, setBLoading] = React.useState(false);
   const [scoutSteps, setScoutSteps] = React.useState([]);
   const [scouting, setScouting] = React.useState(false);
   const [issueNotice, setIssueNotice] = React.useState('');
@@ -93,9 +97,20 @@ export default function App() {
     (async () => {
       try { setMe(await api('/api/me')); } catch {}
       try { const o = await api('/api/orgs'); setOrgs(o); if (window.Scene) Scene.init(o); } catch {}
+      try { setCatStatus(await api('/api/catalogue/status')); } catch {}
       refreshUsage();
     })();
   }, []);
+
+  // browse: refetch whenever the filters change
+  React.useEffect(() => {
+    if (view !== 'browse') return;
+    let live = true;
+    setBLoading(true);
+    const qs = new URLSearchParams({ q: bFilters.q, source: bFilters.source, language: bFilters.language, domain: bFilters.domain, page: bFilters.page, size: 24 });
+    api('/api/catalogue/browse?' + qs).then((d) => live && setBData(d)).catch((e) => live && setError(e.message)).finally(() => live && setBLoading(false));
+    return () => { live = false; };
+  }, [view, bFilters]);
 
   // galaxy reacts to interview answers
   const fit = (o, a) => {
@@ -113,7 +128,7 @@ export default function App() {
   // blur the galaxy behind content screens; keep it crisp on the hero and during the interview
   React.useEffect(() => {
     if (!window.Scene) return;
-    const px = view === 'replies' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' ? 12 : 0;
+    const px = view === 'replies' || view === 'browse' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' ? 12 : 0;
     Scene.setBlur(px);
   }, [view, step, orgs.length]);
 
@@ -206,7 +221,7 @@ export default function App() {
             OSS <em className="bg-gradient-to-r from-sky-200 via-cyan-200 to-orange-300 bg-clip-text pr-1 text-transparent">Mentor</em>
           </button>
           <nav className="ml-2 flex gap-1" aria-label="Main">
-            {[['mentor', 'Mentor'], ['replies', 'PR replies']].map(([id, label]) => (
+            {[['mentor', 'Mentor'], ['browse', 'Browse'], ['replies', 'PR replies']].map(([id, label]) => (
               <button key={id} onClick={() => setView(id)} aria-current={view === id ? 'page' : undefined}
                 className={`rounded-full px-4 py-1.5 text-sm font-extrabold transition ${view === id ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-white/10'}`}>{label}</button>
             ))}
@@ -237,12 +252,15 @@ export default function App() {
       )}
 
       <main>
-        {view === 'replies' ? (
-          needsLogin ? <HeroSection onLogin={() => (location.href = '/auth/login')} orgCount={orgs.length || 14} /> :
+        {view === 'browse' ? (
+          <BrowseCatalogue data={bData} filters={bFilters} onFilters={(p) => setBFilters((f) => ({ ...f, ...p }))} loading={bLoading} status={catStatus} busy={busy}
+            onChoose={(o) => { setView('mentor'); scoutOrg({ org: o.name, github: o.github }, o.repo); }} />
+        ) : view === 'replies' ? (
+          needsLogin ? <HeroSection onLogin={() => (location.href = '/auth/login')} orgCount={(catStatus && catStatus.size) || orgs.length || 14} /> :
           <RepliesInbox prUrl={prUrl} onPrUrl={setPrUrl} onCheck={checkPr} drafts={drafts ? drafts.drafts : null}
             aiFlags={drafts ? drafts.ai_flags || [] : []} canPost={!!(drafts && drafts.can_post)} notice={notice} busy={busy} onSend={sendReply} />
         ) : step === 'hero' || needsLogin ? (
-          <HeroSection onStart={start} onLogin={needsLogin ? () => (location.href = '/auth/login') : null} orgCount={orgs.length || 14} />
+          <HeroSection onStart={start} onLogin={needsLogin ? () => (location.href = '/auth/login') : null} orgCount={(catStatus && catStatus.size) || orgs.length || 14} />
         ) : step === 'interview' && q ? (
           <InterviewStep key={q.id} q={q.q} options={q.options} multi={q.multi} index={qi} total={qs.length}
             value={answers[q.id] ?? (q.multi ? [] : '')} fitCount={qi >= 1 ? fitCount : null}

@@ -60,7 +60,7 @@ async function loadJsx(name) {
 }
 (async () => {
   try {
-    const names = ['HeroSection','InterviewStep','MatchPodium','DiscoverPanel','ScoutProgress','IssueBoard','WorkspaceView','RepliesInbox','app'];
+    const names = ['HeroSection','InterviewStep','MatchPodium','DiscoverPanel','BrowseCatalogue','ScoutProgress','IssueBoard','WorkspaceView','RepliesInbox','app'];
     const loaded = await Promise.all(names.map(loadJsx));
     window.OSS = Object.fromEntries(names.map((n, i) => [n, loaded[i]]));
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.OSS.app));

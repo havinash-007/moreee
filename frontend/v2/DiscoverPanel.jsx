@@ -2,6 +2,15 @@
 // Customize: copy, card styling. Shows (1) runner-up organisations from our catalogue and (2) projects found live on GitHub.
 // Props: others [{org,github,total,max,languages,domains,notes,legal}], found (null | [{repo,owner,description,language,stars,pushed,topics,license,url}]),
 //        loading, error, catalogueSize, onChooseOrg(org), onChooseRepo(repo), onDiscover(), busy.
+function badges(o) {
+  const b = [];
+  (o.gsoc_years || []).slice().sort().slice(-1).forEach((y) => b.push([`GSoC ${y}`, 'bg-sky-400/15 text-sky-200']));
+  if (o.lfx) b.push(['LFX Mentorship', 'bg-cyan-400/15 text-cyan-200']);
+  if (o.cncf && o.cncf !== 'landscape') b.push([`CNCF ${o.cncf}`, 'bg-emerald-400/15 text-emerald-200']);
+  if (o.apache) b.push(['Apache', 'bg-orange-400/15 text-orange-200']);
+  return b;
+}
+
 export default function DiscoverPanel({
   others = [], found = null, loading = false, error = '', catalogueSize = 0,
   onChooseOrg = () => {}, onChooseRepo = () => {}, onDiscover = () => {}, busy = false,
@@ -29,6 +38,7 @@ export default function DiscoverPanel({
               </div>
               <p className="mt-2 flex-1 text-sm text-zinc-400">{o.notes}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
+                {badges(o).map(([t, c]) => <span key={t} className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${c}`}>{t}</span>)}
                 {o.languages.slice(0, 3).map((l) => <span key={l} className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-zinc-200">{l}</span>)}
                 {o.domains.slice(0, 2).map((d) => <span key={d} className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-bold text-sky-200">{d}</span>)}
               </div>

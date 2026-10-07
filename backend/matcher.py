@@ -10,8 +10,40 @@ WEIGHTS = {"language": 3, "interest": 3, "beginner": 2, "goal": 2, "setup": 1}
 
 
 @lru_cache(maxsize=1)
+def curated() -> list[dict]:
+    """Hand-curated, hand-rated organisations (mentor/orgs.json)."""
+    out = json.loads((config.ROOT / "mentor" / "orgs.json").read_text())["orgs"]
+    for o in out:
+        o.setdefault("rated", "curated")
+        o.setdefault("sources", ["curated"])
+        o.setdefault("repo", None)
+    return out
+
+
+_merged: dict = {}
+
+
 def catalogue() -> list[dict]:
-    return json.loads((config.ROOT / "mentor" / "orgs.json").read_text())["orgs"]
+    """Curated entries + the live catalogue (GSoC, LFX, CNCF, Apache, beginner lists) when data/catalogue.json exists.
+    Curated ratings win; live entries that match a curated one only add their programme badges."""
+    from . import catalogue as live
+    doc = live.load()
+    stamp = (id(doc), len(curated()))
+    if _merged.get("stamp") == stamp:
+        return _merged["list"]
+    base = [dict(o) for o in curated()]
+    by_name = {o["name"].lower(): o for o in base}
+    by_login = {o["github"].lower(): o for o in base}
+    extra = []
+    for e in (doc or {}).get("entries", []):
+        host = by_name.get(e["name"].lower()) or (by_login.get(e["github"].lower()) if not e["repo"] else None)
+        if host:
+            live.merge_into(host, e)
+            continue
+        extra.append(e)
+    out = base + extra
+    _merged.update(stamp=stamp, list=out)
+    return out
 
 
 def _overlap(mine: list[str], theirs: list[str]) -> float:
@@ -59,7 +91,10 @@ def score_org(org: dict, p: dict) -> dict:
     total = 0 if gate else round(sum(parts[k] * w for k, w in WEIGHTS.items()), 1)
     return {"org": org["name"], "github": org["github"], "total": total, "max": 55, "parts": parts,
             "gate": gate, "notes": org["notes"], "legal": org.get("legal", "varies"),
-            "languages": org["languages"], "domains": org["domains"]}
+            "languages": org["languages"], "domains": org["domains"], "repo": org.get("repo"),
+            "sources": org.get("sources", []), "gsoc_years": org.get("gsoc_years", []), "lfx": bool(org.get("lfx")),
+            "cncf": org.get("cncf"), "apache": bool(org.get("apache")), "url": org.get("url", ""), "ideas_url": org.get("ideas_url", ""),
+            "rated": org.get("rated", "curated"), "stars": org.get("stars"), "gfi": org.get("gfi")}
 
 
 def rank(profile: dict, top: int = 3) -> list[dict]:
@@ -68,6 +103,6 @@ def rank(profile: dict, top: int = 3) -> list[dict]:
     return scored[:top]
 
 
-def rank_all(profile: dict, top: int = 3, others: int = 12) -> tuple[list[dict], list[dict]]:
+def rank_all(profile: dict, top: int = 3, others: int = 24) -> tuple[list[dict], list[dict]]:
     scored = sorted((score_org(o, profile) for o in catalogue()), key=lambda s: s["total"], reverse=True)
     return scored[:top], [s for s in scored[top:top + others] if not s["gate"]]
