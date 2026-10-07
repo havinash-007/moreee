@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSS Mentor</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  html,body{background:#09090b;color:#fafafa;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{background:radial-gradient(1100px 650px at 75% 35%,#1e1b4b 0%,#09090b 62%) fixed}
+  #bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:none;touch-action:none}
+  .has3d #bg{display:block}
+  #root{position:relative;z-index:2;pointer-events:none}
+  #root :is(header,button,a,input,textarea,article,aside,ol,ul,nav,label,select,code,p,h1,h2,h3,dl,.tour,[role=alert],[role=tablist]){pointer-events:auto}
+  #labels{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;left:0;top:0;font-size:12px;font-weight:600;color:#e0e7ff;text-shadow:0 1px 8px #000;white-space:nowrap;opacity:0;transition:opacity .25s;will-change:transform}
+  #tip{position:fixed;left:0;top:0;z-index:60;pointer-events:none;max-width:270px;background:rgba(9,9,11,.94);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:12px 14px;font-size:13px;opacity:0;transition:opacity .15s;display:grid;gap:2px}
+  #tip b{font-size:15px;font-weight:800}#tip span{color:#c4b5fd;font-weight:600}#tip em{color:#a1a1aa;font-style:normal}#tip small{color:#a1a1aa}#tip strong{color:#f0abfc;margin-top:4px}
+  /* rendered markdown (repo tour, coach) */
+  .tour h1,.tour h2,.tour h3{font-weight:900;letter-spacing:-.02em;color:#fff;margin:1.4em 0 .5em;line-height:1.1}
+  .tour h2{font-size:1.6rem}.tour h3{font-size:1.2rem}.tour h2:first-child{margin-top:0}
+  .tour p,.tour li{color:#d4d4d8;line-height:1.65;font-size:15.5px}.tour p{margin:.6em 0}
+  .tour ul{list-style:disc;padding-left:1.3em}.tour ol{list-style:decimal;padding-left:1.3em}
+  .tour a{color:#c4b5fd;text-decoration:underline}.tour strong{color:#fff}
+  .tour code{font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,.09);padding:.1em .4em;border-radius:6px;font-size:.88em}
+  .tour pre{background:#0c0c10;border:1px solid rgba(255,255,255,.1);padding:14px;border-radius:14px;overflow:auto;margin:1em 0}
+  .tour pre code{background:none;padding:0}
+  .tour pre.mermaid{background:rgba(255,255,255,.04);text-align:center}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:9px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  @media (max-width:899px){.has3d #bg{opacity:.35}}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas><div id="labels" aria-hidden="true"></div><div id="tip" aria-hidden="true"></div>
+<div id="root"></div>
+<noscript>OSS Mentor needs JavaScript.</noscript>
+<script src="/static/scene.js"></script>
+<script>
+// Tiny no-build loader: each .jsx is a self-contained component (React only). We transpile it in the browser,
+// give it React + hooks, and turn `export default X` into a return value.
+const HOOKS = ['useState','useEffect','useRef','useMemo','useCallback'];
+async function loadJsx(name) {
+  const src = await (await fetch(`/static/v2/${name}.jsx`)).text();
+  const js = Babel.transform(src.replace(/^import[^\n]*\n/gm, ''), { presets: ['react'], filename: name + '.jsx' }).code
+    .replace('export default ', 'return ');
+  return new Function('React', ...HOOKS, js)(React, ...HOOKS.map(h => React[h]));
+}
+(async () => {
+  try {
+    const names = ['HeroSection','InterviewStep','MatchPodium','IssueBoard','WorkspaceView','RepliesInbox','app'];
+    const loaded = await Promise.all(names.map(loadJsx));
+    window.OSS = Object.fromEntries(names.map((n, i) => [n, loaded[i]]));
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(window.OSS.app));
+  } catch (e) {
+    document.getElementById('root').innerHTML = '<p style="padding:40px;font-weight:700">Could not start the app: ' + String(e.message).replace(/</g,'&lt;') + '</p>';
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>

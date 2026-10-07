@@ -1,6 +1,6 @@
 # PRD: OSS Mentor UI v2
 
-Status: **Draft for acceptance.** Nothing in this document is built yet.
+Status: **Superseded in part.** The owner chose bold standalone components (no Vite/React rebuild, no build step) instead of the section 11 approach. Screens, journey and design principles below still guide the UI; the shipped components live in `frontend/v2/`.
 Owner: Havinash. Scope: the student-facing web UI (`frontend/`). Backend API stays as is, plus the small additions listed in section 11.
 
 ---

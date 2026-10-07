@@ -62,7 +62,7 @@
 
     ray = new THREE.Raycaster();
     addEventListener('resize', resize); resize();
-    addEventListener('pointermove', e => { mouse.x = e.clientX / innerWidth - 0.5; mouse.y = e.clientY / innerHeight - 0.5; ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1;
+    addEventListener('pointermove', e => { mouse.x = e.clientX / innerWidth - 0.5; mouse.y = e.clientY / innerHeight - 0.5; const over = e.target === canvas; ptr.x = over ? (e.clientX / innerWidth) * 2 - 1 : -9; ptr.y = over ? -(e.clientY / innerHeight) * 2 + 1 : -9;
       if (ptr.down && stage === 'explore') { const dx = e.movementX || 0, dy = e.movementY || 0; group.rotation.y += dx * 0.006; group.rotation.x = Math.max(-1, Math.min(1, group.rotation.x + dy * 0.004)); drag.vy = dx * 0.0006; ptr.moved += Math.abs(dx) + Math.abs(dy); }
       tip.style.transform = `translate(${e.clientX + 16}px,${e.clientY + 16}px)`; });
     canvas.addEventListener('pointerdown', () => { ptr.down = true; ptr.moved = 0; });
@@ -86,18 +86,26 @@
       drag.vx = 0; group.rotation.y = ((group.rotation.y % TAU) + TAU) % TAU; if (group.rotation.y > Math.PI) group.rotation.y -= TAU;
       nodes.forEach(n => { n.tOpacity = 0.18; n.tScale = 0.8; });
       focus.forEach((name, i) => { const n = byName(name); if (!n) return; const score = (opts.scores || {})[name] || 30;
-        const wide = innerWidth >= 900, ox = wide ? 3.4 : 0;
-        const slots = [[ox, 1.5, 2], [ox - 2.6, -2, 0], [ox + 2.6, -2, 0]];
-        n.tOpacity = 1; n.tScale = 0.7 + (score / 55) * 0.7; n.tPos.set(...slots[i]); });
+        const wide = innerWidth >= 900;
+        const slots = wide ? [[5.8, 4.6, 0], [3.3, 4.9, 0], [8.3, 4.9, 0]] : [[0, 5, 0], [-2.6, 5, 0], [2.6, 5, 0]];
+        n.tOpacity = 1; n.tScale = 0.55 + (score / 55) * 0.45; n.tPos.set(...slots[i]); });
       camTarget.z = 17;
     }
     if (s === 'selected' || s === 'working') {
       drag.vx = 0; selected = byName(opts.pick) || selected;
       nodes.forEach(n => { n.tOpacity = 0.12; n.tScale = 0.7; });
-      if (selected) { selected.tOpacity = 1; selected.tScale = s === 'selected' ? 2.6 : 1.3;
-        const ox = innerWidth >= 900 ? 3.4 : 0; selected.tPos.set(s === 'selected' ? ox : ox + 2.2, s === 'selected' ? 0 : 3.2, s === 'selected' ? 3 : 0); }
+      if (selected) { selected.tOpacity = 1; selected.tScale = s === 'selected' ? 2.6 : 0.8;
+        const ox = innerWidth >= 900 ? 3.4 : 0; selected.tPos.set(s === 'selected' ? ox : (innerWidth >= 900 ? 10.3 : 3.5), s === 'selected' ? 0 : -5.2, s === 'selected' ? 3 : 0); }
       camTarget.z = s === 'selected' ? 15 : 20;
     }
+  };
+
+  // Interview feedback: planets that fit the answers glow, the rest dim. Returns how many fit.
+  Scene.react = function (pred) {
+    if (!Scene.available || stage !== 'explore') return null;
+    let c = 0;
+    nodes.forEach(n => { const ok = pred(n.org); if (ok) c++; n.tOpacity = ok ? 1 : 0.16; n.tScale = ok ? 1.2 : 0.7; });
+    return c;
   };
 
   function lerp(a, b, t) { return a + (b - a) * (reduce ? 1 : t); }
@@ -109,10 +117,11 @@
     else { group.rotation.x = lerp(group.rotation.x, 0, 0.06); group.rotation.y = lerp(group.rotation.y, 0, 0.06); }
     stars.rotation.y = time * 0.004;
 
-    camera.position.x = lerp(camera.position.x, mouse.x * 2.2 - (camTarget.shift || 0) * 0.35, 0.05);
+    group.position.x = lerp(group.position.x, stage === 'explore' && innerWidth >= 900 ? 5.4 : 0, 0.05);
+    camera.position.x = lerp(camera.position.x, mouse.x * 2.2, 0.05);
     camera.position.y = lerp(camera.position.y, -mouse.y * 1.6, 0.05);
     camera.position.z = lerp(camera.position.z, camTarget.z, 0.05);
-    camera.lookAt(-(camTarget.shift || 0) * 0.55 * (stage === 'explore' ? 1 : 0.4), 0, 0);
+    camera.lookAt(0, 0, 0);
 
     // hover
     ray.setFromCamera({ x: ptr.x, y: ptr.y }, camera);

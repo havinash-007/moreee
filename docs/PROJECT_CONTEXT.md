@@ -96,7 +96,9 @@ backend tests: .venv/bin/python -m pytest backend -q
 | `backend/replier.py` | Reviewer-comment replies |
 | `backend/app.py` | API + serves UI; holds the 10 questions |
 | `backend/tests/test_core.py` | Tests for matcher, budget, cache, gating |
-| `frontend/index.html` | The UI |
+| `frontend/v2/*.jsx`, `frontend/v2/index.html` | The UI (default): six self-contained components + shell + no-build loader |
+| `frontend/scene.js` | Three.js galaxy used by both UIs |
+| `frontend/index.html` | Original UI, served at `/classic` |
 | `mentor/questions.md`, `mentor/orgs.json` | Rubric and org catalogue |
 | `.claude/skills/oss-mentor/SKILL.md` | Terminal mentor flow |
 | `agents/*.md` | Role prompts and rules (scout, explainer, coach, pair, worker) |

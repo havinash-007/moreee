@@ -180,6 +180,11 @@ def usage(user: auth.User = Depends(auth.require_user)):
 
 @app.get("/")
 def index():
+    return FileResponse(config.ROOT / "frontend" / "v2" / "index.html")
+
+
+@app.get("/classic")
+def classic():
     return FileResponse(config.ROOT / "frontend" / "index.html")
 
 
