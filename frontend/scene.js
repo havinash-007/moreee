@@ -73,6 +73,13 @@
     requestAnimationFrame(frame);
   };
 
+  // Depth-of-field: blur the 3D layer (and its labels) behind content so text stays readable.
+  Scene.setBlur = function (px) {
+    if (!Scene.available) return;
+    const v = px ? `blur(${px}px) saturate(1.1)` : 'none', sc = px ? 'scale(1.05)' : 'none';
+    [canvas, labelBox].forEach((el) => { el.style.transition = 'filter .6s ease, transform .6s ease'; el.style.filter = v; el.style.transform = sc; });
+  };
+
   function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
     camTarget.shift = w < 700 ? 0 : 3.2; }  // push the galaxy right on wide screens so cards stay readable
 

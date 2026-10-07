@@ -110,6 +110,13 @@ export default function App() {
     if (step === 'interview' && window.Scene) Scene.react((o) => fit(o, answers));
   }, [answers, step, orgs]);
 
+  // blur the galaxy behind content screens; keep it crisp on the hero and during the interview
+  React.useEffect(() => {
+    if (!window.Scene) return;
+    const px = view === 'replies' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' ? 12 : 0;
+    Scene.setBlur(px);
+  }, [view, step, orgs.length]);
+
   // mermaid diagrams inside the tour
   React.useEffect(() => {
     if (step !== 'work' || !window.mermaid) return;
