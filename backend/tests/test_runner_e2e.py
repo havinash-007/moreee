@@ -45,10 +45,18 @@ def world(tmp_path, monkeypatch):
         if a[:2] == ["auth", "status"]: sys.exit(0)
         if a[:2] == ["api", "user"]: print("student")
         elif a[:2] == ["repo", "fork"]:
+            # strict like the real gh: --remote is invalid with a repository argument; --clone=false must be explicit to avoid a prompt
+            if "--remote" in a: print("the `--remote` flag is unsupported when a repository argument is provided", file=sys.stderr); sys.exit(1)
+            if "--clone=false" not in a: print("would prompt: Would you like to clone the fork?", file=sys.stderr); sys.exit(1)
+            rec("forked", a[2])
+        elif a[:2] == ["repo", "view"] and "parent" in " ".join(a):
+            print("acme/widgets" if a[2].startswith("student/") else "")
+        elif a[:2] == ["repo", "view"]: print("main")
+        elif a[:2] == ["repo", "clone"]:
             name = a[2].split("/")[1]
             subprocess.run(["git", "clone", "-q", {str(fork)!r}, name], check=True)
-            subprocess.run(["git", "remote", "add", "upstream", {str(upstream)!r}], cwd=name, check=True)
-        elif a[:2] == ["repo", "view"]: print("main")
+            if os.environ.get("FAKE_GH_ADDS_UPSTREAM"):                # real gh adds `upstream` when cloning a fork
+                subprocess.run(["git", "remote", "add", "upstream", {str(upstream)!r}], cwd=name, check=True)
         elif a[:2] == ["pr", "create"]:
             body = open(a[a.index("--body-file") + 1]).read()
             rec("pr", {{"args": a, "body": body}}); print("https://github.com/acme/widgets/pull/77")
@@ -78,7 +86,7 @@ def world(tmp_path, monkeypatch):
     for _ in range(100):
         try: httpx.get(f"http://127.0.0.1:{port}/api/health"); break
         except httpx.HTTPError: time.sleep(0.1)
-    env = dict(os.environ, PATH=f"{bin_}:{os.environ['PATH']}", GITHUB_TOKEN="leak-me", GH_TOKEN="leak-me-too", GIT_CONFIG_GLOBAL=str(gitcfg), GIT_CONFIG_NOSYSTEM="1")
+    env = dict(os.environ, PATH=f"{bin_}:{os.environ['PATH']}", GITHUB_TOKEN="leak-me", GH_TOKEN="leak-me-too", FAKE_GH_ADDS_UPSTREAM="1", GIT_CONFIG_GLOBAL=str(gitcfg), GIT_CONFIG_NOSYSTEM="1")
     yield {"base": f"http://127.0.0.1:{port}", "env": env, "fork": fork, "log": log, "work": tmp_path / "jobs"}
     srv.should_exit = True; t.join(timeout=5)
 
@@ -124,6 +132,33 @@ def test_runner_end_to_end(world):
     pr = calls["pr"]; a = pr["args"]
     assert a[a.index("--repo") + 1] == "acme/widgets" and a[a.index("--head") + 1] == "student:fix/7-oss-mentor"
     assert "Fixes #7" in pr["body"] and "AI assistance" in pr["body"] and "off-by-one" in pr["body"]
+
+
+def test_fork_step_matches_the_real_gh_and_adds_upstream_itself(world, tmp_path):
+    """Regression for the first real run: `gh repo fork <repo> --clone --remote` is rejected by real gh. Also covers a gh that
+    does NOT add the upstream remote when cloning, and a same-named repo that is not a fork of the project."""
+    from backend import runner
+    env = dict(world["env"]); env.pop("FAKE_GH_ADDS_UPSTREAM")
+    old_path = os.environ["PATH"]; os.environ["PATH"] = env["PATH"]
+    try:
+        work = tmp_path / "w"; work.mkdir()
+        repo_dir, default = runner.prepare_repo({"repo": "acme/widgets", "number": 7}, work, "student", sleep=lambda *_: None)
+        assert default == "main" and (repo_dir / ".git").exists()
+        assert "upstream" in git("remote", cwd=repo_dir) and "origin" in git("remote", cwd=repo_dir)   # runner added upstream itself
+        calls = json.load(open(world["log"]))
+        assert calls["forked"] == "acme/widgets"
+        with pytest.raises(RuntimeError, match="not a fork of acme/other"):                           # name clash with an unrelated repo
+            runner.prepare_repo({"repo": "acme/other", "number": 1}, work, "nobody", sleep=lambda *_: None)
+    finally:
+        os.environ["PATH"] = old_path
+
+
+def test_errors_are_one_readable_line_not_a_usage_dump(tmp_path):
+    from backend import runner
+    f = tmp_path / "bad"; f.write_text(f"#!{sys.executable}\nimport sys\nprint('the `--remote` flag is unsupported', file=sys.stderr)\nprint('', file=sys.stderr)\nprint('Usage:  gh repo fork', file=sys.stderr)\nprint('Flags:', file=sys.stderr)\nsys.exit(1)\n"); f.chmod(0o755)
+    with pytest.raises(RuntimeError) as e:
+        runner.sh([str(f), "repo", "fork"], tmp_path)
+    assert "\n" not in str(e.value) and "--remote" in str(e.value) and "Usage" not in str(e.value)
 
 
 def test_runner_reports_failure_when_agent_makes_no_change(world, tmp_path):

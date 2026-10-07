@@ -133,8 +133,46 @@ class Api:
 def sh(args: list[str], cwd: Path | None = None, check: bool = True, env: dict | None = None) -> str:
     p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env)
     if check and p.returncode != 0:
-        raise RuntimeError(f"{' '.join(args[:3])} failed: {(p.stderr or p.stdout).strip()[:300]}")
+        lines = [l.strip() for l in (p.stderr or p.stdout).splitlines() if l.strip()]
+        first = next((l for l in lines if not l.lower().startswith(("usage", "flags", "error:"))), lines[0] if lines else "no output")
+        raise RuntimeError(f"`{' '.join(args[:3])}` failed: {first[:220]}")  # one useful line, not a screen of usage text
     return p.stdout
+
+
+def prepare_repo(spec: dict, work: Path, login: str, api=None, sleep=time.sleep) -> tuple[Path, str]:
+    """Fork (without cloning), verify the fork really descends from the project, clone the fork, ensure an `upstream` remote.
+    Written against the real `gh`: `--remote` is rejected when a repository argument is given, and a fresh fork can take a few
+    seconds to become cloneable. Returns (repo_dir, upstream_default_branch)."""
+    repo, name = spec["repo"], spec["repo"].split("/")[1]
+    say = (lambda t: api.event("fork", t)) if api else (lambda t: None)
+    say("Forking the repository to your account…")
+    sh(["gh", "repo", "fork", repo, "--clone=false", "--default-branch-only"], work)
+    parent = ""
+    for _ in range(15):  # wait until GitHub reports the fork (up to ~30 s)
+        parent = sh(["gh", "repo", "view", f"{login}/{name}", "--json", "parent", "-q", ".parent.nameWithOwner"], work, check=False).strip()
+        if parent:
+            break
+        sleep(2)
+    if parent.lower() != repo.lower():
+        raise RuntimeError(f"{login}/{name} exists but is not a fork of {repo}. Rename or delete it, then try again.")
+    say("Fork ready. Cloning it…")
+    repo_dir = work / name
+    last = None
+    for _ in range(5):  # a brand-new fork is sometimes not cloneable for a moment
+        try:
+            sh(["gh", "repo", "clone", f"{login}/{name}"], work)
+            last = None
+            break
+        except RuntimeError as e:
+            last = e
+            sleep(3)
+    if last:
+        raise last
+    if sh(["git", "remote", "get-url", "upstream"], repo_dir, check=False).strip() == "":
+        sh(["git", "remote", "add", "upstream", f"https://github.com/{repo}.git"], repo_dir)
+    default = sh(["gh", "repo", "view", repo, "--json", "defaultBranchRef", "-q", ".defaultBranchRef.name"]).strip() or "main"
+    say(f"Branching from upstream/{default}…")
+    return repo_dir, default
 
 
 def collect_diff(repo_dir: Path) -> tuple[str, list[str]]:
@@ -200,14 +238,9 @@ def main(argv=None) -> int:
 
     work = Path(a.workdir) / spec["id"]
     work.mkdir(parents=True, exist_ok=True)
-    repo_name = spec["repo"].split("/")[1]
-    repo_dir = work / repo_name
     try:
-        api.event("fork", "Forking the repository to your account…")
         login = sh(["gh", "api", "user", "-q", ".login"]).strip()
-        sh(["gh", "repo", "fork", spec["repo"], "--clone", "--remote"], work)
-        api.event("clone", "Cloned. Branching from the upstream default branch…")
-        default = sh(["gh", "repo", "view", spec["repo"], "--json", "defaultBranchRef", "-q", ".defaultBranchRef.name"]).strip() or "main"
+        repo_dir, default = prepare_repo(spec, work, login, api)
         branch = f"fix/{spec['number']}-oss-mentor"
         sh(["git", "fetch", "upstream", default], repo_dir)
         sh(["git", "switch", "-c", branch, f"upstream/{default}"], repo_dir)
