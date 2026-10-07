@@ -126,6 +126,12 @@ def health():
             "session_budget_usd": config.SESSION_BUDGET_USD}
 
 
+@app.get("/api/orgs")
+def orgs():
+    """Public catalogue for the 3D galaxy (no secrets, no user data)."""
+    return [{k: o[k] for k in ("name", "github", "languages", "domains", "beginner", "notes")} for o in matcher.catalogue()]
+
+
 @app.get("/api/questions")
 def questions():
     return QUESTIONS

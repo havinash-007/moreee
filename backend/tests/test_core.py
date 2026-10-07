@@ -244,3 +244,10 @@ def test_token_reaches_endpoint_thread(monkeypatch):
     monkeypatch.setattr(agents, "scout", lambda org, profile, sid: seen.update(tok=auth.current_token.get(), sid=sid) or {"picks": []})
     r = c.post("/api/scout", json={"org": "zulip", "profile": {}}, cookies={"oss_session": "sidB"})
     assert r.status_code == 200 and seen == {"tok": "tokB", "sid": "bob"}
+
+
+def test_orgs_endpoint_is_public_and_minimal(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    r = c.get("/api/orgs")  # no login: the 3D galaxy must render before sign-in
+    assert r.status_code == 200 and len(r.json()) >= 10
+    assert set(r.json()[0]) == {"name", "github", "languages", "domains", "beginner", "notes"}

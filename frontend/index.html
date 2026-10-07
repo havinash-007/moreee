@@ -1,9 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OSS Mentor</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
@@ -39,7 +41,7 @@ button.ghost{background:none;border-color:var(--line);color:var(--ink)}
 .chip.warn{color:var(--warn)}.chip.ok{color:var(--ok)}.chip.bad{color:var(--bad)}
 .score{font-size:30px;font-weight:700}.bars{display:grid;gap:4px;margin:10px 0}
 .bar2{display:grid;grid-template-columns:100px 1fr 36px;gap:8px;align-items:center;font-size:13px;color:var(--mute)}
-.bar2 b{display:block;height:6px;border-radius:9px;background:var(--brand)}.bar2 span{background:var(--line);border-radius:9px;height:6px;display:block}
+.bar2 b{display:block;height:6px;border-radius:9px;background:var(--brand)}.bar2 .t{background:var(--line);border-radius:9px;height:6px;display:block}
 .rec{border-color:var(--brand)}
 .md pre{background:var(--bg);padding:12px;border-radius:8px;overflow:auto;font-size:13px}.md code{font-size:.92em}.md img{max-width:100%}
 .chat{display:grid;gap:10px;max-height:52vh;overflow:auto;margin-bottom:12px}
@@ -52,6 +54,23 @@ textarea{min-height:80px;resize:vertical}
 @keyframes s{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
 .quote{border-left:3px solid var(--line);padding-left:12px;color:var(--mute);margin:8px 0;font-size:14px;white-space:pre-wrap}
+
+#bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:none;touch-action:none}
+.has3d #bg{display:block}
+body{background:radial-gradient(1200px 700px at 70% 40%,#1b1f3a 0%,var(--bg) 60%)}
+#labels{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;font-size:12px;color:#dfe3ff;text-shadow:0 1px 6px #000;white-space:nowrap;opacity:0;transition:opacity .25s;will-change:transform}
+#tip{position:fixed;left:0;top:0;z-index:6;pointer-events:none;max-width:260px;background:rgba(15,17,28,.92);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;opacity:0;transition:opacity .15s;display:grid;gap:2px}
+#tip b{font-size:14px}#tip span{color:#c8ccff}#tip em{color:var(--mute);font-style:normal}#tip small{color:var(--mute)}#tip strong{color:var(--brand);margin-top:4px}
+header,main{position:relative;z-index:2}
+header{background:color-mix(in srgb,var(--card) 80%,transparent);backdrop-filter:blur(10px)}
+.has3d .card{background:color-mix(in srgb,var(--card) 74%,transparent);backdrop-filter:blur(14px)}
+.hint3d{display:none}.has3d .hint3d{display:block}
+.legend{position:fixed;left:16px;bottom:12px;z-index:2;display:none;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--mute);max-width:70vw}
+.has3d .legend{display:flex}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+@media (min-width:900px){.has3d main{margin:0 auto 0 max(16px,5vw);max-width:540px}.legend{left:auto;right:16px;justify-content:flex-end;max-width:46vw}}
+@media (max-width:899px){.has3d #bg{opacity:.35}.legend{display:none!important}}
+@media (prefers-reduced-motion:reduce){.lbl{transition:none}}
 </style>
 </head>
 <body>
@@ -65,7 +84,10 @@ textarea{min-height:80px;resize:vertical}
   <div class="meter" id="who" style="display:none"></div>
   <div class="meter" title="Spend this session vs. budget"><span id="spend">$0.000</span><div class="track"><div class="fill" id="fill"></div></div><span id="cap"></span></div>
 </div></header>
+<canvas id="bg" aria-hidden="true"></canvas><div id="labels" aria-hidden="true"></div><div id="tip" aria-hidden="true"></div>
+<div class="legend" aria-hidden="true"><span><i style="background:#6ea8ff"></i>Web</span><span><i style="background:#c084fc"></i>AI / data</span><span><i style="background:#34d399"></i>Cloud</span><span><i style="background:#fb7185"></i>Security</span><span><i style="background:#fbbf24"></i>Mobile</span><span><i style="background:#22d3ee"></i>Dev tools</span><span><i style="background:#f472b6"></i>Education</span><span>Bigger planet = more beginner-friendly</span></div>
 <main id="app"></main>
+<script src="/static/scene.js"></script>
 
 <script>
 const $=(s,r=document)=>r.querySelector(s);
@@ -108,7 +130,7 @@ function mentorView(){
   if(S.step===0) return `<div class="card"><h1>Make your first open-source contribution</h1>
    <p class="mute">Answer ten quick questions. We match you to the best organisations, find a first issue that is really free, explain the codebase, and coach you to your own pull request.</p>
    <p class="small mute">Matching is free and instant. Only scouting, the repo tour and coaching use AI credits, and a budget caps them.</p>
-   <button class="primary" data-act="start">Start</button></div>`;
+   <p class="small mute hint3d">Drag to spin the galaxy of organisations. Hover a planet to see what it is about.</p><button class="primary" data-act="start">Start</button></div>`;
   if(S.step===1){
     const q=S.questions[S.qi],a=S.answers[q.id],sel=q.multi?(a||[]):a;
     return `<div class="card"><div class="progress"><i style="width:${(S.qi)/S.questions.length*100}%"></i></div>
@@ -123,7 +145,7 @@ function mentorView(){
     ${S.ranking.map((o,i)=>`<div class="card ${i===0?'rec':''}"><div class="row"><div class="score">${o.total}<span class="small mute">/55</span></div>
       <div><h3>${esc(o.org)} ${i===0?'<span class="chip ok">Recommended</span>':''}</h3><div>${o.languages.map(x=>`<span class="chip">${esc(x)}</span>`).join('')}<span class="chip ${o.legal==='cla'?'warn':''}">${esc(o.legal==='none'?'no sign-off':o.legal)}</span></div></div></div>
       <p class="small mute">${esc(o.notes)}</p>${o.gate?`<div class="chip bad">${esc(o.gate)}</div>`:''}
-      <div class="bars">${Object.entries(o.parts).map(([k,v])=>`<div class="bar2"><span style="background:none">${k}</span><span><b style="width:${v/5*100}%"></b></span><em>${v}</em></div>`).join('')}</div>
+      <div class="bars">${Object.entries(o.parts).map(([k,v])=>`<div class="bar2"><span>${k}</span><span class="t"><b style="width:${v/5*100}%"></b></span><em>${v}</em></div>`).join('')}</div>
       <button class="${i===0?'primary':'ghost'}" data-act="pick" data-i="${i}" ${o.gate?'disabled':''} ${S.busy?'disabled':''}>Choose ${esc(o.org)}</button></div>`).join('')}
     ${S.busy?busy('Scouting real issues on GitHub...'):''}`;
   }
@@ -183,15 +205,15 @@ async function act(a,el){
   else if(a==='back'){S.qi--;render()}
   else if(a==='next'){
     if(S.qi<S.questions.length-1){S.qi++;render()}
-    else run(async()=>{S.ranking=(await api('/api/match',S.answers)).ranking;S.step=2})}
-  else if(a==='pick')run(async()=>{S.org=S.ranking[i];S.scout=await api('/api/scout',{org:S.org.github,profile:S.answers,session:SID});S.step=3});
-  else if(a==='toorgs'){S.step=2;render()}
+    else run(async()=>{S.ranking=(await api('/api/match',S.answers)).ranking;S.step=2;stage3d('ranked')})}
+  else if(a==='pick')run(async()=>{S.org=S.ranking[i];stage3d('selected');try{S.scout=await api('/api/scout',{org:S.org.github,profile:S.answers,session:SID})}catch(e){stage3d('ranked');throw e}S.step=3;stage3d('working')});
+  else if(a==='toorgs'){S.step=2;stage3d('ranked');render()}
   else if(a==='issue')run(async()=>{S.issue=S.scout.picks[i];S.history=[];
     S.tour=await api('/api/tour',{repo:S.issue.repo,issue_title:S.issue.title,level:S.answers.skill,session:SID});S.step=4});
   else if(a==='say'){
     const box=$('#say'),t=box.value.trim();if(!t)return;S.history.push({role:'user',content:t});box.value='';
     run(async()=>{const r=await api('/api/coach',{mode:S.answers.mode,context:S.tour.markdown+'\nIssue: '+S.issue.title,history:S.history,session:SID});S.history.push({role:'assistant',content:r.reply})})}
-  else if(a==='restart'){Object.assign(S,{step:0,answers:{},ranking:null,org:null,scout:null,issue:null,tour:null,history:[]});render()}
+  else if(a==='restart'){Object.assign(S,{step:0,answers:{},ranking:null,org:null,scout:null,issue:null,tour:null,history:[]});stage3d('explore');render()}
   else if(a==='draft'){S.prUrl=$('#pr').value.trim();run(async()=>{S.drafts=await api('/api/replies/draft',{pr_url:S.prUrl,session:SID})})}
   else if(a==='copy'){const t=document.querySelector(`[data-reply="${i}"]`).value;navigator.clipboard&&navigator.clipboard.writeText(t)}
   else if(a==='send'){const d=S.drafts.drafts[i],t=document.querySelector(`[data-reply="${i}"]`).value;
@@ -199,7 +221,11 @@ async function act(a,el){
 }
 $('#tab-mentor').onclick=()=>{S.view='mentor';render()};
 $('#tab-replies').onclick=()=>{S.view='replies';render()};
-(async()=>{try{S.health=await api('/api/health')}catch{}try{S.me=await api('/api/me')}catch{}render();if(!S.me.hosted||S.me.login)refreshUsage()})();
+function stage3d(st){if(!window.Scene||!Scene.available)return;
+  if(st==='ranked')Scene.setStage('ranked',{focus:S.ranking.map(r=>r.org),scores:Object.fromEntries(S.ranking.map(r=>[r.org,r.total]))});
+  else if(st==='selected'||st==='working')Scene.setStage(st,{pick:S.org.org});else Scene.setStage(st)}
+if(window.Scene)Scene.onPick=name=>{const i=(S.ranking||[]).findIndex(r=>r.org===name);if(i>=0&&S.step===2&&!S.busy&&!S.ranking[i].gate)act('pick',{dataset:{i}})};
+(async()=>{try{S.health=await api('/api/health')}catch{}try{if(window.Scene&&window.THREE)Scene.init(await api('/api/orgs'))}catch{}try{S.me=await api('/api/me')}catch{}render();if(!S.me.hosted||S.me.login)refreshUsage()})();
 </script>
 </body>
 </html>
