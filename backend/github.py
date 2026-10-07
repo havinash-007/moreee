@@ -1,6 +1,8 @@
 """Thin GitHub REST client. Reads are cheap and cached briefly; writes require an explicit token."""
 import hashlib
+import re
 import time
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -56,54 +58,88 @@ BAN_WORDS = ("no ai", "not accept ai", "ban ai", "prohibit", "not allowed", "wil
 
 
 def policy_scan(owner: str, repo: str) -> dict:
-    """Cheap keyword scan of policy files. A hit means 'a human must read this', not a verdict."""
-    found, flags = [], []
-    for f in POLICY_FILES:
-        txt = raw_file(owner, repo, f)
-        if not txt:
-            continue
-        found.append(f)
+    """Cheap keyword scan of policy files (each fetched once). A hit means 'a human must read this', not a verdict."""
+    texts = {f: raw_file(owner, repo, f) for f in POLICY_FILES}
+    found = [f for f, t in texts.items() if t]
+    flags, legal = [], set()
+    for f in found:
+        txt = texts[f]
         low = txt.lower()
         if "ai" in low or "llm" in low or "copilot" in low:
             for line in txt.splitlines():
                 l = line.lower()
                 if ("ai" in l.split() or "llm" in l or "ai-" in l or "ai " in l) and any(w in l for w in BAN_WORDS):
                     flags.append({"file": f, "line": line.strip()[:240]})
-    legal = []
-    for f in found:
-        t = (raw_file(owner, repo, f) or "").lower()
-        if "signed-off-by" in t or "dco" in t:
-            legal.append("DCO")
-        if "cla" in t.split() or "contributor license" in t or "easycla" in t:
-            legal.append("CLA")
-    return {"files": found, "ai_flags": flags[:5], "legal": sorted(set(legal))}
+        if "signed-off-by" in low or "dco" in low:
+            legal.add("DCO")
+        if "cla" in low.split() or "contributor license" in low or "easycla" in low:
+            legal.add("CLA")
+    return {"files": found, "ai_flags": flags[:5], "legal": sorted(legal)}
 
 
-def candidate_issues(owner: str, repo: str, labels=("good first issue", "help wanted"), limit=15) -> list[dict]:
-    """Deterministic pre-filter: open, unassigned, not a PR, labelled, recent. No model tokens spent."""
-    out: dict[int, dict] = {}
-    for label in labels:
-        items = get(f"/repos/{owner}/{repo}/issues",
-                    {"state": "open", "labels": label, "assignee": "none", "per_page": 30, "sort": "updated"})
-        for i in items:
-            if "pull_request" in i or i.get("assignee"):
-                continue
-            out[i["number"]] = {
-                "number": i["number"], "title": i["title"], "url": i["html_url"],
-                "labels": [l["name"] for l in i.get("labels", [])],
-                "comments": i.get("comments", 0), "updated": i["updated_at"],
-                "body": (i.get("body") or "")[:1500],
-            }
-    # fewer comments = less likely already claimed/discussed to death
-    return sorted(out.values(), key=lambda x: x["comments"])[:limit]
+LABEL_TIERS = [
+    ["good first issue", "good-first-issue", "first-timers-only", "beginner", "starter", "easy"],
+    ["help wanted", "help-wanted", "contributions welcome"],
+    None,  # last resort: any open, unassigned, unlinked issue; the ranking step judges suitability
+]
 
 
-def has_open_pr_for(owner: str, repo: str, number: int) -> bool:
+def search_free_issues(scope: str, tier: int, limit: int = 40) -> tuple[list[dict], int]:
+    """ONE search call: open, unassigned, no linked PR, not archived, optionally label-filtered.
+    scope is 'org:x', 'user:x' or 'repo:x/y'. Replaces the old per-issue PR lookups that exhausted the search rate limit."""
+    q = f"{scope} is:issue is:open no:assignee -linked:pr archived:false"
+    labels = LABEL_TIERS[tier]
+    if labels:
+        q += " label:" + ",".join(f'"{l}"' for l in labels)
+    else:
+        q += " comments:<4"
+    data = get("/search/issues", {"q": q, "sort": "updated", "order": "desc", "per_page": limit})
+    out = []
+    for i in data.get("items", []):
+        out.append({
+            "number": i["number"], "title": i["title"], "url": i["html_url"],
+            "repo": i["repository_url"].split("/repos/")[1],
+            "labels": [l["name"] for l in i.get("labels", [])], "comments": i.get("comments", 0),
+            "updated": i["updated_at"], "body": (i.get("body") or "")[:1500],
+        })
+    return out, data.get("total_count", len(out))
+
+
+CLAIM_RE = re.compile(r"(i('| wi)?ll (take|work|do|fix|pick)|i can (take|work|fix|do)|working on (this|it)|can i (work|take|pick|have)|"
+                      r"assign (this )?(to|me)|i('d| would) (like|love) to (work|take|fix)|i want to (work|fix|take)|claim(ing)?( this)?)", re.I)
+
+
+def recent_claim(owner: str, repo: str, number: int, days: int = 14) -> bool:
+    """True if someone (not just the author) recently said they are working on it."""
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     try:
-        r = get("/search/issues", {"q": f"repo:{owner}/{repo} is:pr {number} in:body,title"})
+        cs = get(f"/repos/{owner}/{repo}/issues/{number}/comments", {"since": since, "per_page": 30})
     except httpx.HTTPStatusError:
-        return True  # when unsure, treat as claimed
-    return r.get("total_count", 0) > 0
+        return False  # a failed read here must not hide the issue; the verify step re-checks on click
+    return any(CLAIM_RE.search(c.get("body") or "") for c in cs)
+
+
+def verify_issue(owner: str, repo: str, number: int, light: bool = False) -> dict:
+    """Check an issue against what is true right now: open, unassigned, no open PR referencing it, nobody claiming it.
+    light=True (used while scouting) trusts the search for open/unassigned and skips the uncached issue fetch."""
+    if light:
+        i = {"state": "open", "assignees": []}
+    else:
+        _cache.clear()
+        i = get(f"/repos/{owner}/{repo}/issues/{number}")
+    linked = []
+    try:
+        for ev in get(f"/repos/{owner}/{repo}/issues/{number}/timeline", {"per_page": 100}):
+            src = (ev.get("source") or {}).get("issue") or {}
+            if ev.get("event") == "cross-referenced" and "pull_request" in src and src.get("state") == "open":
+                linked.append(src["number"])
+    except httpx.HTTPStatusError:
+        pass
+    claimed = recent_claim(owner, repo, number)
+    ok = i.get("state") == "open" and not i.get("assignees") and not linked and not claimed
+    reason = ("closed" if i.get("state") != "open" else "assigned" if i.get("assignees") else
+              f"an open pull request already references it (#{linked[0]})" if linked else "someone said they are working on it" if claimed else "")
+    return {"ok": ok, "reason": reason, "checked_at": datetime.now(timezone.utc).isoformat(), "linked_prs": linked}
 
 
 def repo_overview(owner: str, repo: str) -> dict:

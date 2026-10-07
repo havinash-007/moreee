@@ -2,7 +2,7 @@
    Explore: drag to rotate, hover for details.  Ranked: your top matches fly to the front, click one to choose it.
    Purely decorative + a shortcut: every action also exists as a normal button, and it degrades to nothing without WebGL. */
 (function () {
-  const COLORS = { web: 0x7db7ff, 'ai-ml-data': 0xe8c468, 'cloud-devops': 0x3fd0a0, security: 0xff7a6b, mobile: 0xf5a623, devtools: 0x4fd1d9, education: 0xf2b8a0, social: 0xb5e36a, creative: 0xff9a4d };
+  const COLORS = { web: 0x5aa0ff, 'ai-ml-data': 0xff8a4a, 'cloud-devops': 0x2fd0b0, security: 0xff5a5a, mobile: 0xff9f43, devtools: 0x39d5ff, education: 0x8ce0c0, social: 0xa6e35a, creative: 0xff7a45 };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const Scene = { available: false, onPick: null };
   window.Scene = Scene;
@@ -37,7 +37,7 @@
     for (let i = 0; i < N; i++) { const r = 40 + Math.random() * 60, a = Math.random() * TAU, b = Math.acos(2 * Math.random() - 1);
       pos[i * 3] = r * Math.sin(b) * Math.cos(a); pos[i * 3 + 1] = r * Math.sin(b) * Math.sin(a); pos[i * 3 + 2] = r * Math.cos(b); }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xf1e6c8, size: 0.35, transparent: true, opacity: 0.8, depthWrite: false }));
+    stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xdbe7ff, size: 0.35, transparent: true, opacity: 0.8, depthWrite: false }));
     scene.add(stars);
 
     // organisations on a golden-spiral shell
@@ -46,7 +46,7 @@
     orgs.forEach((o, i) => {
       const y = 1 - (i / (n - 1)) * 2, rad = Math.sqrt(1 - y * y), th = i * golden, R = n > 30 ? 7.4 : 6.2;
       const home = new THREE.Vector3(Math.cos(th) * rad * R, y * R * 0.75, Math.sin(th) * rad * R);
-      const crowd = Math.max(0.42, Math.sqrt(14 / n)), col = COLORS[o.domains[0]] || 0xe5c07b, size = (0.38 + o.beginner * 0.07) * crowd;
+      const crowd = Math.max(0.42, Math.sqrt(14 / n)), col = COLORS[o.domains[0]] || 0x7dd3fc, size = (0.38 + o.beginner * 0.07) * crowd;
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, n > 30 ? 16 : 32, n > 30 ? 16 : 32),
         new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1, transparent: true }));
       const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55 }));

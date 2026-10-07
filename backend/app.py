@@ -1,10 +1,11 @@
 """FastAPI server: JSON API for the agents plus the static UI. Run: uvicorn backend.app:app"""
+import json
 import os
 
 import anthropic
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -67,6 +68,7 @@ class Profile(BaseModel):
 class ScoutReq(BaseModel):
     org: str
     repo: str | None = None
+    fallback_orgs: list[str] = []
     profile: Profile
     session: str = "default"
 
@@ -157,7 +159,38 @@ def discover(languages: str = "", interests: str = "", user: auth.User = Depends
 
 @app.post("/api/scout")
 def scout(r: ScoutReq, user: auth.User = Depends(auth.require_user)):
-    return agents.scout(r.org, r.profile.model_dump(), user.login, r.repo)
+    return agents.scout(r.org, r.profile.model_dump(), user.login, r.repo, r.fallback_orgs)
+
+
+@app.post("/api/scout/stream")
+def scout_stream(r: ScoutReq, user: auth.User = Depends(auth.require_user)):
+    """Newline-delimited JSON: progress steps as they happen, then one result (or one error) event."""
+    def gen():
+        try:
+            for ev in agents.scout_stream(r.org, r.profile.model_dump(), user.login, r.repo, r.fallback_orgs):
+                yield json.dumps(ev) + "\n"
+        except llm.BudgetExceeded as e:
+            yield json.dumps({"type": "error", "kind": "budget", "error": str(e)}) + "\n"
+        except anthropic.AuthenticationError:
+            yield json.dumps({"type": "error", "kind": "auth", "error": "auth"}) + "\n"
+        except httpx.HTTPError as e:
+            yield json.dumps({"type": "error", "kind": "github", "error": f"GitHub request failed: {e}"}) + "\n"
+        except anthropic.APIError as e:
+            yield json.dumps({"type": "error", "kind": "claude", "error": str(getattr(e, "message", e))}) + "\n"
+    return StreamingResponse(gen(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+class VerifyReq(BaseModel):
+    repo: str
+    number: int
+
+
+@app.post("/api/verify")
+def verify(r: VerifyReq, user: auth.User = Depends(auth.require_user)):
+    """Fresh, uncached check that an issue is still open, unassigned, unclaimed and has no open PR."""
+    from . import github
+    owner, repo = r.repo.split("/")
+    return github.verify_issue(owner, repo, r.number)
 
 
 @app.post("/api/tour")

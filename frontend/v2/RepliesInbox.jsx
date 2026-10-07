@@ -15,15 +15,15 @@ export default function RepliesInbox({
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-16">
-      <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">Reviewer replies</p>
+      <p className="text-sm font-bold uppercase tracking-[0.2em] text-sky-300">Reviewer replies</p>
       <h2 className="mt-3 text-6xl leading-[0.95] text-white md:text-8xl">
-        Answer like <em className="bg-gradient-to-r from-amber-100 to-yellow-500 bg-clip-text pr-1 text-transparent">you mean it.</em>
+        Answer like <em className="bg-gradient-to-r from-sky-200 via-cyan-200 to-orange-300 bg-clip-text pr-1 text-transparent">you mean it.</em>
       </h2>
       <p className="mt-5 max-w-2xl text-lg font-medium text-zinc-300">Paste your pull request. We read the new comments and draft replies. You rewrite them in your own voice.</p>
 
       <div className="mt-10 flex flex-wrap gap-3">
         <input value={prUrl} onChange={(e) => onPrUrl(e.target.value)} placeholder="https://github.com/owner/repo/pull/123"
-          className="min-w-0 flex-1 rounded-full border-2 border-white/15 bg-zinc-900/80 px-6 py-4 text-base text-white placeholder-zinc-500 focus:border-amber-400 focus:outline-none" />
+          className="min-w-0 flex-1 rounded-full border-2 border-white/15 bg-zinc-900/80 px-6 py-4 text-base text-white placeholder-zinc-500 focus:border-sky-400 focus:outline-none" />
         <button onClick={onCheck} disabled={busy || !prUrl.trim()} className="rounded-full bg-white px-9 py-4 text-base font-extrabold text-zinc-950 transition hover:scale-105 hover:brightness-110 disabled:opacity-40 disabled:hover:scale-100">
           {busy ? 'Reading…' : 'Check comments →'}
         </button>
@@ -44,7 +44,7 @@ export default function RepliesInbox({
           <ul className="space-y-2">
             {list.map((x, i) => (
               <li key={x.id}>
-                <button onClick={() => setSel(i)} className={`w-full rounded-2xl border-2 p-4 text-left transition hover:scale-[1.01] ${i === sel ? 'border-amber-400 bg-amber-500/15' : 'border-white/10 bg-zinc-950/70'}`}>
+                <button onClick={() => setSel(i)} className={`w-full rounded-2xl border-2 p-4 text-left transition hover:scale-[1.01] ${i === sel ? 'border-sky-400 bg-sky-500/15' : 'border-white/10 bg-zinc-950/70'}`}>
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-white">@{x.user}</span>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase ${tone[x.kind] || tone.other}`}>{x.kind}</span>
@@ -66,7 +66,7 @@ export default function RepliesInbox({
                 <>
                   <label className="mt-6 block text-xs font-black uppercase tracking-widest text-zinc-500" htmlFor="reply-box">Draft reply (edit it!)</label>
                   <textarea id="reply-box" value={text} onChange={(e) => setEdits({ ...edits, [d.id]: e.target.value })} rows={6}
-                    className="mt-2 w-full rounded-2xl border-2 border-white/15 bg-zinc-900 p-4 text-base text-white focus:border-amber-400 focus:outline-none" />
+                    className="mt-2 w-full rounded-2xl border-2 border-white/15 bg-zinc-900 p-4 text-base text-white focus:border-sky-400 focus:outline-none" />
                   <div className="mt-4 flex flex-wrap gap-3">
                     <button onClick={() => navigator.clipboard && navigator.clipboard.writeText(text)} className="rounded-full border-2 border-white/25 px-6 py-3 font-bold text-white transition hover:border-white/60">Copy</button>
                     {canPost && <button onClick={() => onSend(d, text)} disabled={busy} className="rounded-full bg-white px-7 py-3 font-extrabold text-zinc-950 transition hover:scale-105 disabled:opacity-40">Approve and send</button>}

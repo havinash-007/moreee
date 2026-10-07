@@ -56,6 +56,26 @@ Students connect their own GitHub (OAuth). Scopes: `public_repo` and `read:user`
 - Setup (operator): create a GitHub OAuth App, set callback `BASE_URL/auth/callback`, put `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `BASE_URL` in `.env`. Without a client id the app runs in single-user local mode.
 - Limit: sessions are held in memory, so a restart logs everyone out. Use a database or Redis before real traffic.
 
+## Scouting design (how a student always gets a result)
+1. One GitHub issue-search call finds open, unassigned issues with no linked PR across a whole organisation (`org/user/repo` scope). An earlier design made one search per issue, hit GitHub's 30-per-minute search limit and treated the errors as "claimed", which produced empty results.
+2. Label tiers widen automatically: beginner labels, then "help wanted", then any unclaimed low-discussion issue.
+3. Every candidate is re-checked live (open PR referencing it via the issue timeline, recent "I'll take it" comments). The search alone missed real cases, e.g. an issue with five open PRs.
+4. Policies are read once per repo. One cheap-model call ranks the survivors.
+5. If an organisation has nothing, the scout tries up to two next-best organisations and tells the student. If all fail, the empty state shows what was searched and offers other matches.
+6. Progress streams to the UI as newline-delimited JSON; the student sees each step. Clicking an issue re-verifies it first (`/api/verify`), and cards show how long ago they were verified.
+
+## Do we need a database?
+Today: no for a single local user (files and browser storage cover it). Yes before hosting for several students. What it would hold:
+| Data | Now | Problem when hosted |
+|---|---|---|
+| Login sessions | in memory | Lost on every restart; cannot run two servers |
+| Usage and budgets per student | `data/usage.json` + memory | Not per-student on disk; races between workers |
+| Student profile, chosen org, journey step, step checklists | browser localStorage | Lost on another device or cleared browser; the team cannot see progress |
+| Reply drafts and which comments are handled | `data/replies.json` | Same as above |
+| LLM response cache | files in `data/cache` | Fine locally; use Redis or a table with expiry when hosted |
+| Audit trail of what was posted to GitHub | none | Needed if auto-posting is ever enabled |
+Recommendation: SQLite now (one file, no ops, easy to back up), then PostgreSQL when there are multiple servers. Do not store GitHub tokens in plain text; encrypt them or keep them only in server memory with short sessions.
+
 ## Safety and policy decisions (important)
 - **The student does their own legal sign-offs.** DCO and CLA are never signed by an agent.
 - **Policy scan before recommending.** `github.policy_scan` reads AI_POLICY/AGENTS/CONTRIBUTING and flags AI restrictions. It is a keyword scan, so a hit means "a human must read this", not a verdict. If GitHub cannot be read (rate limit, outage) the error propagates; it must never look like "no restriction".

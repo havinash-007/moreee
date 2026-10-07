@@ -12,7 +12,7 @@ export default function DiscoverPanel({
   return (
     <section className="mx-auto max-w-6xl px-6 pb-24">
       <div className="border-t border-white/10 pt-14">
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">More to explore</p>
+        <p className="text-sm font-bold uppercase tracking-[0.2em] text-sky-300">More to explore</p>
         <h3 className="mt-3 text-5xl leading-[0.95] text-white md:text-7xl">
           Not feeling the top three?
         </h3>
@@ -22,7 +22,7 @@ export default function DiscoverPanel({
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((o, i) => (
-            <article key={o.org} className="flex flex-col rounded-2xl border border-white/10 bg-zinc-950/70 p-5 backdrop-blur transition duration-150 hover:-translate-y-0.5 hover:border-amber-400/50">
+            <article key={o.org} className="flex flex-col rounded-2xl border border-white/10 bg-zinc-950/70 p-5 backdrop-blur transition duration-150 hover:-translate-y-0.5 hover:border-sky-400/50">
               <div className="flex items-start justify-between gap-3">
                 <h4 className="text-xl font-black leading-tight text-white"><span className="mr-2 text-zinc-500">#{i + 4}</span>{o.org}</h4>
                 <span className="text-2xl font-black text-white">{o.total}<span className="text-xs font-bold text-zinc-500">/{o.max}</span></span>
@@ -30,14 +30,14 @@ export default function DiscoverPanel({
               <p className="mt-2 flex-1 text-sm text-zinc-400">{o.notes}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {o.languages.slice(0, 3).map((l) => <span key={l} className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-zinc-200">{l}</span>)}
-                {o.domains.slice(0, 2).map((d) => <span key={d} className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-200">{d}</span>)}
+                {o.domains.slice(0, 2).map((d) => <span key={d} className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-bold text-sky-200">{d}</span>)}
               </div>
               <button onClick={() => onChooseOrg(o)} disabled={busy} className="mt-4 rounded-full border-2 border-white/25 px-5 py-2.5 text-sm font-extrabold text-white transition hover:border-white/60 disabled:opacity-40">Find me an issue here →</button>
             </article>
           ))}
         </div>
         {others.length > 6 && (
-          <button onClick={() => setShowAll(!showAll)} className="mt-6 text-sm font-extrabold text-amber-300 hover:underline">{showAll ? 'Show fewer' : `Show ${others.length - 6} more matches`}</button>
+          <button onClick={() => setShowAll(!showAll)} className="mt-6 text-sm font-extrabold text-sky-300 hover:underline">{showAll ? 'Show fewer' : `Show ${others.length - 6} more matches`}</button>
         )}
 
         <div className="mt-14 rounded-3xl border border-emerald-400/30 bg-emerald-400/5 p-6 md:p-8">

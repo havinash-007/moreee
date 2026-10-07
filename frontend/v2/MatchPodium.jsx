@@ -37,7 +37,7 @@ function Radar({ parts, hot }) {
       {[0.4, 0.7, 1].map((s) => (
         <polygon key={s} points={AXES.map((_, i) => pt(i, R * s).join(',')).join(' ')} fill="none" stroke="rgba(255,255,255,0.12)" />
       ))}
-      <polygon points={poly} fill={hot ? 'rgba(229,192,123,0.30)' : 'rgba(94,234,212,0.20)'} stroke={hot ? '#E5C07B' : '#5EEAD4'} strokeWidth="2" />
+      <polygon points={poly} fill={hot ? 'rgba(125,211,252,0.30)' : 'rgba(94,234,212,0.20)'} stroke={hot ? '#FB923C' : '#5EEAD4'} strokeWidth="2" />
       {AXES.map(([k, label], i) => {
         const [x, y] = pt(i, R + 15);
         return (
@@ -55,9 +55,9 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
   const order = matches.length === 3 ? [1, 0, 2] : matches.map((_, i) => i);
   return (
     <section className="mx-auto max-w-6xl px-6 py-16">
-      <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">Your matches</p>
+      <p className="text-sm font-bold uppercase tracking-[0.2em] text-sky-300">Your matches</p>
       <h2 className="mt-3 text-6xl leading-[0.95] text-white md:text-8xl">
-        Meet your <em className="bg-gradient-to-r from-amber-100 to-yellow-500 bg-clip-text pr-1 text-transparent">top three.</em>
+        Meet your <em className="bg-gradient-to-r from-sky-200 via-cyan-200 to-orange-300 bg-clip-text pr-1 text-transparent">top three.</em>
       </h2>
       <p className="mt-5 max-w-2xl text-lg font-medium text-zinc-300">
         Scored on language, interest, beginner-friendliness, goal and setup. Ratings are our judgement, so we double-check live before you commit.
@@ -71,7 +71,7 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
               key={m.org}
               className={`relative rounded-3xl border p-6 backdrop-blur transition duration-200 hover:-translate-y-1 ${
                 first
-                  ? 'border-amber-300/60 bg-gradient-to-b from-amber-500/15 to-zinc-950/80 shadow-[0_0_80px_-20px_rgba(229,192,123,0.5)] md:-translate-y-6 md:pb-8'
+                  ? 'border-sky-300/60 bg-gradient-to-b from-sky-500/15 to-zinc-950/80 shadow-[0_0_80px_-20px_rgba(125,211,252,0.5)] md:-translate-y-6 md:pb-8'
                   : 'border-white/10 bg-zinc-950/70'
               } ${m.gate ? 'opacity-60' : ''}`}
             >
@@ -109,7 +109,7 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
               <button
                 onClick={() => onChoose(i)}
                 disabled={busy || !!m.gate}
-                className={`mt-6 w-full rounded-full px-6 py-3.5 text-base font-extrabold transition duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
+                className={`mt-6 w-full rounded-full px-6 py-3.5 text-base font-extrabold transition duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
                   first ? 'bg-white text-zinc-950 hover:brightness-110' : 'border-2 border-white/25 text-white hover:border-white/60'
                 }`}
               >

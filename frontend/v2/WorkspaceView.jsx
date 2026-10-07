@@ -132,12 +132,12 @@ export default function WorkspaceView({
       <button onClick={onBack} className="mb-6 text-sm font-bold text-zinc-400 transition hover:text-white">← Back to issues</button>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">{issue.repo} #{issue.number}</p>
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-sky-300">{issue.repo} #{issue.number}</p>
           <h2 className="mt-2 max-w-3xl text-4xl leading-[1.05] text-white md:text-6xl">{issue.title}</h2>
         </div>
         <div className="w-48">
           <div className="mb-1 flex justify-between text-xs font-bold text-zinc-400"><span>Progress</span><span>{pct}%</span></div>
-          <div className="h-2 rounded-full bg-white/10"><div className="h-2 rounded-full bg-gradient-to-r from-amber-100 to-yellow-500 transition-all duration-500" style={{ width: pct + '%' }} /></div>
+          <div className="h-2 rounded-full bg-white/10"><div className="h-2 rounded-full bg-gradient-to-r from-sky-300 to-orange-400 transition-all duration-500" style={{ width: pct + '%' }} /></div>
         </div>
       </div>
 
@@ -147,13 +147,13 @@ export default function WorkspaceView({
           {guides.map((s, i) => {
             const isDone = done.includes(i), now = i === current, open = i === active && tab === 'guide';
             return (
-              <li key={s.name} className={`flex items-stretch gap-2 rounded-2xl border-2 transition duration-150 ${open ? 'border-amber-400 bg-amber-500/20' : now ? 'border-amber-400/50 bg-amber-500/10' : 'border-white/10 bg-zinc-950/70'}`}>
+              <li key={s.name} className={`flex items-stretch gap-2 rounded-2xl border-2 transition duration-150 ${open ? 'border-sky-400 bg-sky-500/20' : now ? 'border-sky-400/50 bg-sky-500/10' : 'border-white/10 bg-zinc-950/70'}`}>
                 <button onClick={() => toggleDone(i)} aria-pressed={isDone} aria-label={`Mark ${s.name} ${isDone ? 'not done' : 'done'}`}
-                  className="flex items-center pl-3 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400 rounded-l-2xl">
-                  <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-black transition hover:scale-110 ${isDone ? 'bg-emerald-400 text-zinc-950' : now ? 'bg-amber-400 text-zinc-950' : 'bg-white/10 text-zinc-400'}`}>{isDone ? '✓' : i + 1}</span>
+                  className="flex items-center pl-3 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400 rounded-l-2xl">
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-black transition hover:scale-110 ${isDone ? 'bg-emerald-400 text-zinc-950' : now ? 'bg-sky-400 text-zinc-950' : 'bg-white/10 text-zinc-400'}`}>{isDone ? '✓' : i + 1}</span>
                 </button>
                 <button onClick={() => { setActive(i); setTab('guide'); }} aria-current={open ? 'step' : undefined}
-                  className="flex-1 rounded-r-2xl py-3 pr-3 text-left transition hover:brightness-125 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400">
+                  className="flex-1 rounded-r-2xl py-3 pr-3 text-left transition hover:brightness-125 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400">
                   <span className={`block text-base font-extrabold ${isDone ? 'text-zinc-400 line-through' : 'text-white'}`}>{s.name}</span>
                   <span className="block text-xs font-medium text-zinc-400">{open ? 'Open' : 'Tap for the guide'}</span>
                 </button>
@@ -173,7 +173,7 @@ export default function WorkspaceView({
 
           {tab === 'guide' && (
             <div className={`${H} overflow-auto p-6 md:p-8`}>
-              <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">Step {active + 1} of {guides.length}</p>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-sky-300">Step {active + 1} of {guides.length}</p>
               <h3 className="mt-1 text-6xl text-white">{g.name}</h3>
               <p className="mt-3 max-w-2xl text-lg font-medium text-zinc-300">{g.why}</p>
 
@@ -184,7 +184,7 @@ export default function WorkspaceView({
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-black text-zinc-200">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-base font-semibold text-zinc-100">
-                        {s.text} {s.link && <a href={s.link} target="_blank" rel="noopener noreferrer" className="font-bold text-amber-300 hover:underline">Open ↗</a>}
+                        {s.text} {s.link && <a href={s.link} target="_blank" rel="noopener noreferrer" className="font-bold text-sky-300 hover:underline">Open ↗</a>}
                       </p>
                       {s.cmd && (
                         <div className="relative mt-2">
@@ -219,7 +219,7 @@ export default function WorkspaceView({
               </ul>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <button onClick={() => send(g.ask)} disabled={busy} className="rounded-full border-2 border-white/25 px-6 py-3 font-bold text-white transition hover:border-amber-300 disabled:opacity-40">Ask the coach about this step</button>
+                <button onClick={() => send(g.ask)} disabled={busy} className="rounded-full border-2 border-white/25 px-6 py-3 font-bold text-white transition hover:border-sky-300 disabled:opacity-40">Ask the coach about this step</button>
                 <button
                   onClick={() => { if (!done.includes(active)) toggleDone(active); if (active < guides.length - 1) setActive(active + 1); }}
                   className={`rounded-full px-7 py-3 font-extrabold transition hover:scale-105 ${allChecked ? 'bg-white text-zinc-950' : 'bg-white/10 text-zinc-300'}`}>
@@ -241,7 +241,7 @@ export default function WorkspaceView({
                   </div>
                 )}
                 {messages.map((m, i) => (
-                  <div key={i} className={`max-w-[92%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${m.role === 'user' ? 'ml-auto bg-amber-500/25 text-white' : 'tour bg-white/5 text-zinc-100'}`}>
+                  <div key={i} className={`max-w-[92%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${m.role === 'user' ? 'ml-auto bg-sky-500/25 text-white' : 'tour bg-white/5 text-zinc-100'}`}>
                     {m.html ? <div dangerouslySetInnerHTML={{ __html: m.html }} /> : m.text}
                   </div>
                 ))}
@@ -250,12 +250,12 @@ export default function WorkspaceView({
               <div className="border-t border-white/10 p-4">
                 <div className="mb-3 flex flex-wrap gap-2">
                   {[['I am stuck: next hint, please', 'Bigger hint'], ['Quiz me on this code', 'Quiz me'], ['Review what I have so far', 'Review my work']].map(([t, l]) => (
-                    <button key={l} onClick={() => send(t)} disabled={busy} className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-bold text-zinc-200 transition hover:border-amber-300 hover:text-white disabled:opacity-40">{l}</button>
+                    <button key={l} onClick={() => send(t)} disabled={busy} className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-bold text-zinc-200 transition hover:border-sky-300 hover:text-white disabled:opacity-40">{l}</button>
                   ))}
                 </div>
                 <div className="flex gap-3">
                   <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Type your idea or question…"
-                    className="min-w-0 flex-1 rounded-full border-2 border-white/15 bg-zinc-900 px-5 py-3 text-base text-white placeholder-zinc-500 focus:border-amber-400 focus:outline-none" />
+                    className="min-w-0 flex-1 rounded-full border-2 border-white/15 bg-zinc-900 px-5 py-3 text-base text-white placeholder-zinc-500 focus:border-sky-400 focus:outline-none" />
                   <button onClick={() => send()} disabled={busy || !text.trim()} className="rounded-full bg-white px-7 py-3 text-base font-extrabold text-zinc-950 transition hover:scale-105 disabled:opacity-40 disabled:hover:scale-100">Send</button>
                 </div>
               </div>
@@ -267,12 +267,12 @@ export default function WorkspaceView({
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-3xl border border-white/10 bg-zinc-950/75 p-5 backdrop-blur">
             <p className="text-xs font-black uppercase tracking-widest text-zinc-500">Quick links</p>
-            <a href={issue.url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-base font-bold text-amber-300 hover:underline">Open the issue ↗</a>
-            <a href={`https://github.com/${issue.repo}/blob/HEAD/CONTRIBUTING.md`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-base font-bold text-amber-300 hover:underline">Contributing guide ↗</a>
-            <a href={`https://github.com/${issue.repo}/pulls`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-base font-bold text-amber-300 hover:underline">Open pull requests ↗</a>
+            <a href={issue.url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-base font-bold text-sky-300 hover:underline">Open the issue ↗</a>
+            <a href={`https://github.com/${issue.repo}/blob/HEAD/CONTRIBUTING.md`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-base font-bold text-sky-300 hover:underline">Contributing guide ↗</a>
+            <a href={`https://github.com/${issue.repo}/pulls`} target="_blank" rel="noopener noreferrer" className="mt-1 block text-base font-bold text-sky-300 hover:underline">Open pull requests ↗</a>
           </div>
           <div className="rounded-3xl border border-amber-400/30 bg-amber-400/10 p-5">
-            <p className="text-xs font-black uppercase tracking-widest text-amber-300">Before you open the PR</p>
+            <p className="text-xs font-black uppercase tracking-widest text-sky-300">Before you open the PR</p>
             <ul className="mt-2 space-y-1.5 text-sm font-medium text-amber-50/90">
               {(issue.legal || []).length > 0 && <li>• Sign the {issue.legal.join(' / ')} yourself. We never do it for you.</li>}
               <li>• Explain every changed line without help.</li>

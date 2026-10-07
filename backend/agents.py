@@ -1,5 +1,6 @@
 """The mentor's agents. Each one does as much as possible in plain code and calls the model once, with a capped output."""
 import json
+from datetime import datetime, timezone
 
 from . import github, llm
 
@@ -11,50 +12,96 @@ Rank the best 3 for THIS student. Prefer small, clear, testable fixes that match
 Reply with JSON only: {"picks":[{"repo":"owner/name","number":N,"fit":"one sentence","learn":"what they will learn","hours":N,"risk":"one sentence"}]}"""
 
 
-def _org_repos(org: str, languages: list[str], n: int = 3) -> list[str]:
-    try:
-        repos = github.get(f"/orgs/{org}/repos", {"sort": "updated", "per_page": 30, "type": "public"})
-    except github.httpx.HTTPStatusError as e:
-        if e.response.status_code != 404:
-            raise
-        repos = github.get(f"/users/{org}/repos", {"sort": "updated", "per_page": 30})  # owner is a person, not an org
-    want = {l.lower() for l in languages}
-    ok = [r for r in repos if not r.get("archived") and not r.get("fork")]
-    pref = [r for r in ok if (r.get("language") or "").lower() in want] or ok
-    pref.sort(key=lambda r: r.get("open_issues_count", 0), reverse=True)
-    return [r["full_name"] for r in pref[:n]]
+def _scope(owner: str, repo: str | None) -> str:
+    return f"repo:{repo}" if repo else f"user:{owner}"  # `user:` matches repos owned by a person or an organisation
 
 
-def scout(org: str, profile: dict, session_id: str, repo: str | None = None) -> dict:
-    pool, policies, skipped = [], {}, []
-    for full in ([repo] if repo else _org_repos(org, profile.get("languages", []))):
-        owner, repo = full.split("/")
-        pol = github.policy_scan(owner, repo)
-        policies[full] = pol
-        if pol["ai_flags"] and profile.get("mode") == "full":
-            skipped.append({"repo": full, "reason": "Policy mentions AI restrictions; full-auto skips these", "flags": pol["ai_flags"]})
+def scout_stream(org: str, profile: dict, session_id: str, repo: str | None = None, fallbacks: list[str] | None = None):
+    """Yield progress events, then a final {'type': 'result', ...}. Tries the chosen organisation first, then up to two
+    fallbacks, and only gives up after three. Deterministic work is plain code; the model is called once per attempt."""
+    targets = [(org, repo)] + [(f, None) for f in (fallbacks or []) if f.lower() != org.lower()][:2]
+    stats = {"tried": [], "found": 0, "claimed": 0, "has_pr": 0, "policy_skipped": 0}
+    all_skipped, policies = [], {}
+    step = lambda t: {"type": "step", "text": t}
+
+    for owner, only_repo in targets:
+        name = only_repo or owner
+        stats["tried"].append(name)
+        yield step(f"Searching {name} for open issues nobody has taken…")
+        issues, total, tier = [], 0, 0
+        for tier in range(len(github.LABEL_TIERS)):
+            issues, total = github.search_free_issues(_scope(owner, only_repo), tier)
+            if issues:
+                break
+            yield step("No beginner-labelled issues yet; widening the search…")
+        if not issues:
+            yield step(f"Nothing open and unclaimed in {name}.")
             continue
-        for i in github.candidate_issues(owner, repo)[:6]:
-            if github.has_open_pr_for(owner, repo, i["number"]):
+        stats["found"] += total
+        yield step(f"Found {total} open, unassigned issues with no linked pull request.")
+
+        # spread across repos, fewer comments first (less likely to be a long debate)
+        issues.sort(key=lambda i: (i["comments"], i["updated"]), reverse=False)
+        by_repo: dict[str, list[dict]] = {}
+        for i in issues:
+            by_repo.setdefault(i["repo"], []).append(i)
+        repos = sorted(by_repo, key=lambda r: len(by_repo[r]), reverse=True)[:4]
+
+        pool = []
+        for full in repos:
+            o, r = full.split("/")
+            yield step(f"Reading {full} contribution and AI policies…")
+            pol = policies.setdefault(full, github.policy_scan(o, r))
+            if pol["ai_flags"] and profile.get("mode") == "full":
+                all_skipped.append({"repo": full, "reason": "Policy mentions AI restrictions; full-auto skips these", "flags": pol["ai_flags"]})
+                stats["policy_skipped"] += 1
                 continue
-            i["repo"] = full
-            pool.append(i)
-    pool = pool[:8]
-    if not pool:
-        return {"picks": [], "skipped": skipped, "policies": policies, "cost_usd": 0.0}
-    brief = [{"repo": i["repo"], "number": i["number"], "title": i["title"], "labels": i["labels"],
-              "comments": i["comments"], "body": i["body"][:500]} for i in pool]
-    user = json.dumps({"student": profile, "candidates": brief})
-    r = llm.ask(tier="cheap", system=SCOUT_SYSTEM, messages=[{"role": "user", "content": user}],
-                max_tokens=900, session_id=session_id)
-    by = {(i["repo"], i["number"]): i for i in pool}
-    picks = []
-    for p in llm.parse_json(r["text"]).get("picks", []):
-        src = by.get((p.get("repo"), p.get("number")))
-        if src:
-            picks.append({**p, "title": src["title"], "url": src["url"], "labels": src["labels"],
-                          "legal": policies[src["repo"]]["legal"], "ai_flags": policies[src["repo"]]["ai_flags"]})
-    return {"picks": picks, "skipped": skipped, "policies": policies, "cost_usd": r["cost_usd"]}
+            for i in by_repo[full][:5]:
+                pool.append(i)
+        yield step("Double-checking each issue for open PRs and people already working on it…")
+        free = []
+        for i in pool[:10]:
+            o, r = i["repo"].split("/")
+            v = github.verify_issue(o, r, i["number"], light=True)
+            if v["ok"]:
+                i["verified_at"] = v["checked_at"]
+                free.append(i)
+            elif "pull request" in v["reason"]:
+                stats["has_pr"] += 1
+            else:
+                stats["claimed"] += 1
+        free = free[:8]
+        if not free:
+            yield step(f"Everything in {name} looks taken; trying the next best match…")
+            continue
+
+        yield step(f"Ranking {len(free)} candidates for you…")
+        brief = [{"repo": i["repo"], "number": i["number"], "title": i["title"], "labels": i["labels"],
+                  "comments": i["comments"], "body": i["body"][:500]} for i in free]
+        r = llm.ask(tier="cheap", system=SCOUT_SYSTEM, messages=[{"role": "user", "content": json.dumps({"student": profile, "candidates": brief})}],
+                    max_tokens=900, session_id=session_id)
+        by = {(i["repo"], i["number"]): i for i in free}
+        picks = []
+        for p in llm.parse_json(r["text"]).get("picks", []):
+            src = by.get((p.get("repo"), p.get("number")))
+            if src:
+                picks.append({**p, "title": src["title"], "url": src["url"], "labels": src["labels"],
+                              "legal": policies[src["repo"]]["legal"], "ai_flags": policies[src["repo"]]["ai_flags"],
+                              "verified_at": src.get("verified_at") or datetime.now(timezone.utc).isoformat()})
+        if picks:
+            yield {"type": "result", "picks": picks, "skipped": all_skipped, "policies": policies, "stats": stats,
+                   "org_used": name, "cost_usd": r["cost_usd"]}
+            return
+        yield step("Could not rank any of those; trying the next best match…")
+
+    yield {"type": "result", "picks": [], "skipped": all_skipped, "policies": policies, "stats": stats, "org_used": None, "cost_usd": 0.0}
+
+
+def scout(org: str, profile: dict, session_id: str, repo: str | None = None, fallbacks: list[str] | None = None) -> dict:
+    last = {}
+    for ev in scout_stream(org, profile, session_id, repo, fallbacks):
+        last = ev
+    return last
 
 
 # ------------------------------------------------------------ explainer

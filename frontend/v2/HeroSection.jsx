@@ -13,17 +13,17 @@ export default function HeroSection({
   ];
   return (
     <section className="relative flex min-h-[86vh] items-center px-6 py-20 md:px-20 pointer-events-none">
-      <div className="absolute -left-40 top-10 -z-10 h-96 w-96 rounded-full bg-amber-700 opacity-20 blur-3xl" />
-      <div className="absolute left-1/3 bottom-0 -z-10 h-80 w-80 rounded-full bg-orange-700 opacity-20 blur-3xl" />
+      <div className="absolute -left-40 top-10 -z-10 h-96 w-96 rounded-full bg-sky-800 opacity-25 blur-3xl" />
+      <div className="absolute left-1/3 bottom-0 -z-10 h-80 w-80 rounded-full bg-orange-700 opacity-15 blur-3xl" />
       <div className="max-w-3xl">
-        <span className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-semibold text-amber-200 backdrop-blur">
+        <span className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-semibold text-sky-200 backdrop-blur">
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
           Open source, minus the gatekeeping
         </span>
         <h1 className="mt-6 text-7xl leading-[0.9] text-white sm:text-8xl md:text-9xl">
           Ship your first
           <br />
-          <em className="bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-500 bg-clip-text pr-2 text-transparent">
+          <em className="bg-gradient-to-r from-sky-200 via-cyan-200 to-orange-300 bg-clip-text pr-2 text-transparent">
             real PR.
           </em>
         </h1>
@@ -35,14 +35,14 @@ export default function HeroSection({
           {onLogin ? (
             <button
               onClick={onLogin}
-              className="rounded-full bg-white px-10 py-4 text-lg font-extrabold text-zinc-950 shadow-[0_0_60px_-10px_rgba(229,192,123,0.55)] transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400"
+              className="rounded-full bg-white px-10 py-4 text-lg font-extrabold text-zinc-950 shadow-[0_0_60px_-10px_rgba(125,211,252,0.55)] transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400"
             >
               Continue with GitHub →
             </button>
           ) : (
             <button
               onClick={onStart}
-              className="rounded-full bg-white px-10 py-4 text-lg font-extrabold text-zinc-950 shadow-[0_0_60px_-10px_rgba(229,192,123,0.55)] transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400"
+              className="rounded-full bg-white px-10 py-4 text-lg font-extrabold text-zinc-950 shadow-[0_0_60px_-10px_rgba(125,211,252,0.55)] transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400"
             >
               Find my first issue →
             </button>

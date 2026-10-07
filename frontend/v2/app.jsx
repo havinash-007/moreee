@@ -21,8 +21,33 @@ async function api(path, body) {
   return j;
 }
 
+// Reads newline-delimited JSON events from the scout: calls onStep for progress, returns the final result.
+async function streamScout(body, onStep) {
+  const r = await fetch('/api/scout/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.status === 401) { const e = new Error('login'); e.login = true; throw e; }
+  if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(FRIENDLY[j.kind] || j.error || 'Scouting failed. Try again.'); }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', result = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+      if (!line) continue;
+      const ev = JSON.parse(line);
+      if (ev.type === 'step') onStep(ev.text);
+      else if (ev.type === 'error') throw new Error(FRIENDLY[ev.kind] || ev.error);
+      else if (ev.type === 'result') result = ev;
+    }
+    if (done) break;
+  }
+  if (!result) throw new Error('Scouting ended unexpectedly. Try again.');
+  return result;
+}
+
 export default function App() {
-  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox } = window.OSS;
+  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress } = window.OSS;
   const [view, setView] = React.useState('mentor');
   const [step, setStep] = React.useState('hero');
   const [me, setMe] = React.useState({ hosted: false, login: 'local' });
@@ -37,6 +62,10 @@ export default function App() {
   const [discLoading, setDiscLoading] = React.useState(false);
   const [discError, setDiscError] = React.useState('');
   const [org, setOrg] = React.useState(null);
+  const [scoutSteps, setScoutSteps] = React.useState([]);
+  const [scouting, setScouting] = React.useState(false);
+  const [issueNotice, setIssueNotice] = React.useState('');
+  const [checking, setChecking] = React.useState(-1);
   const [scout, setScout] = React.useState({ picks: [], skipped: [] });
   const [issue, setIssue] = React.useState(null);
   const [tourHtml, setTourHtml] = React.useState('');
@@ -85,7 +114,7 @@ export default function App() {
   React.useEffect(() => {
     if (step !== 'work' || !window.mermaid) return;
     const t = setTimeout(() => {
-      try { mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: { darkMode: true, background: '#0c0b09', primaryColor: '#1c1912', primaryBorderColor: '#E5C07B', primaryTextColor: '#F5EFE0', lineColor: '#E5C07B', secondaryColor: '#16140e', tertiaryColor: '#16140e', textColor: '#F5EFE0' } }); mermaid.run({ querySelector: '.tour pre.mermaid' }); } catch {}
+      try { mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: { darkMode: true, background: '#05080c', primaryColor: '#1c1912', primaryBorderColor: '#FB923C', primaryTextColor: '#F5EFE0', lineColor: '#FB923C', secondaryColor: '#16140e', tertiaryColor: '#16140e', textColor: '#F5EFE0' } }); mermaid.run({ querySelector: '.tour pre.mermaid' }); } catch {}
     }, 150);
     return () => clearTimeout(t);
   }, [step, tourHtml, msgs.length]);
@@ -104,12 +133,18 @@ export default function App() {
     });
   };
   const back3d = () => stage3d('ranked', { focus: ranking.map((x) => x.org), scores: Object.fromEntries(ranking.map((x) => [x.org, x.total])) });
-  const scoutOrg = (o, repo) => run(async () => {
-    setOrg(o); stage3d('selected', { pick: o.org });
-    try { setScout(await api('/api/scout', { org: o.github, repo: repo || null, profile: answers })); }
-    catch (e) { back3d(); throw e; }
-    setStep('issues'); stage3d('working', { pick: o.org });
-  });
+  const allOrgs = [...ranking, ...others];
+  const scoutOrg = async (o, repo) => {
+    setBusy(true); setError(''); setIssueNotice(''); setScoutSteps([]); setScouting(true); setOrg(o); stage3d('selected', { pick: o.org });
+    try {
+      const fallbacks = repo ? [] : allOrgs.map((x) => x.github).filter((g) => g.toLowerCase() !== o.github.toLowerCase()).slice(0, 2);
+      const res = await streamScout({ org: o.github, repo: repo || null, profile: answers, fallback_orgs: fallbacks }, (t) => setScoutSteps((s) => [...s, t]));
+      const used = res.org_used ? (allOrgs.find((x) => x.github.toLowerCase() === res.org_used.toLowerCase()) || { org: res.org_used, github: res.org_used }) : o;
+      setOrg(used); setScout(res); setStep('issues'); stage3d('working', { pick: used.org });
+      if (res.org_used && used.github.toLowerCase() !== o.github.toLowerCase()) setIssueNotice(`${o.org} had nothing free right now, so we searched ${used.org} for you instead.`);
+    } catch (e) { back3d(); if (e.login) setMe({ hosted: true, login: null }); else setError(e.message); }
+    finally { setScouting(false); setBusy(false); refreshUsage(); }
+  };
   const choose = (i) => scoutOrg(ranking[i]);
   const chooseRepo = (r) => scoutOrg({ org: r.repo, github: r.owner }, r.repo);
   const discover = async () => {
@@ -118,7 +153,17 @@ export default function App() {
     catch (e) { if (e.login) setMe({ hosted: true, login: null }); else setDiscError(e.message); }
     finally { setDiscLoading(false); }
   };
+  const verifyPick = async (i) => {
+    const p = scout.picks[i];
+    const v = await api('/api/verify', { repo: p.repo, number: p.number });
+    if (v.ok) { setScout((sc) => ({ ...sc, picks: sc.picks.map((x, j) => (j === i ? { ...x, verified_at: v.checked_at } : x)) })); return true; }
+    setScout((sc) => ({ ...sc, picks: sc.picks.filter((_, j) => j !== i) }));
+    setIssueNotice(`#${p.number} in ${p.repo} just changed: ${v.reason}. We removed it so you do not waste time on it.`);
+    return false;
+  };
+  const recheck = async (i) => { setChecking(i); setError(''); try { await verifyPick(i); } catch (e) { setError(e.message); } finally { setChecking(-1); } };
   const pickIssue = (i) => run(async () => {
+    if (!(await verifyPick(i))) return;
     const p = scout.picks[i];
     const t = await api('/api/tour', { repo: p.repo, issue_title: p.title, level: answers.skill || 'beginner' });
     setIssue(p); setTourMd(t.markdown); setTourHtml(renderMd(t.markdown)); setMsgs([]); setStep('work');
@@ -151,7 +196,7 @@ export default function App() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-4 py-3 md:px-8">
           <button onClick={reset} className="display text-3xl leading-none text-white">
-            OSS <em className="bg-gradient-to-r from-amber-100 to-yellow-500 bg-clip-text pr-1 text-transparent">Mentor</em>
+            OSS <em className="bg-gradient-to-r from-sky-200 via-cyan-200 to-orange-300 bg-clip-text pr-1 text-transparent">Mentor</em>
           </button>
           <nav className="ml-2 flex gap-1" aria-label="Main">
             {[['mentor', 'Mentor'], ['replies', 'PR replies']].map(([id, label]) => (
@@ -174,6 +219,8 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {scouting && <ScoutProgress title={org ? `Finding your issue in ${org.org}` : 'Scouting for you'} steps={scoutSteps} />}
 
       {error && (
         <div role="alert" className="mx-auto mt-4 flex max-w-3xl items-start justify-between gap-4 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-5 py-4 text-base font-semibold text-rose-100">
@@ -200,7 +247,9 @@ export default function App() {
               onChooseOrg={(o) => scoutOrg(o)} onChooseRepo={chooseRepo} onDiscover={discover} />
           </>
         ) : step === 'issues' ? (
-          <IssueBoard issues={scout.picks} org={org ? org.org : ''} skipped={scout.skipped} busy={busy} onPick={pickIssue}
+          <IssueBoard issues={scout.picks} org={org ? org.org : ''} skipped={scout.skipped} stats={scout.stats} notice={issueNotice} checking={checking}
+            alternatives={allOrgs.filter((x) => !org || x.github.toLowerCase() !== org.github.toLowerCase()).slice(0, 4)} busy={busy}
+            onPick={pickIssue} onRecheck={recheck} onTry={(a) => scoutOrg(a)}
             onBack={() => { setStep('matches'); back3d(); }} />
         ) : step === 'work' && issue ? (
           answers.mode === 'full' ? (

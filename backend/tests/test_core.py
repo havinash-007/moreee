@@ -144,7 +144,7 @@ def test_rate_limit_is_not_silently_clear(monkeypatch):
     with pytest.raises(httpx.HTTPStatusError):
         github.raw_file("o", "r", "CONTRIBUTING.md")
     with pytest.raises(httpx.HTTPStatusError):
-        github.candidate_issues("o", "r")
+        github.search_free_issues("org:o", 0)
 
 
 def test_missing_file_is_none(monkeypatch):
@@ -244,7 +244,7 @@ def test_token_reaches_endpoint_thread(monkeypatch):
     c, auth = _hosted(monkeypatch)
     from backend import agents
     seen = {}
-    monkeypatch.setattr(agents, "scout", lambda org, profile, sid, repo=None: seen.update(tok=auth.current_token.get(), sid=sid) or {"picks": []})
+    monkeypatch.setattr(agents, "scout", lambda org, profile, sid, repo=None, fallbacks=None: seen.update(tok=auth.current_token.get(), sid=sid) or {"picks": []})
     r = c.post("/api/scout", json={"org": "zulip", "profile": {}}, cookies={"oss_session": "sidB"})
     assert r.status_code == 200 and seen == {"tok": "tokB", "sid": "bob"}
 
@@ -305,3 +305,104 @@ def test_discover_dedupes_known_and_one_per_owner(monkeypatch):
 def test_discover_endpoint_requires_login_when_hosted(monkeypatch):
     c, _ = _hosted(monkeypatch)
     assert c.get("/api/discover?languages=Python").status_code == 401
+
+
+# ---- scouting: widening, fallback, claims, verify
+def _issue(repo, n, comments=1):
+    return {"number": n, "title": f"t{n}", "url": "u", "repo": repo, "labels": [], "comments": comments, "updated": "2026-10-01T00:00:00Z", "body": ""}
+
+
+def _stub_scout(monkeypatch, per_scope, claims=(), prs=()):
+    from backend import agents, github
+    calls = []
+
+    def search(scope, tier, limit=40):
+        calls.append((scope, tier))
+        items = per_scope.get((scope, tier), [])
+        return items, len(items)
+
+    monkeypatch.setattr(github, "search_free_issues", search)
+    monkeypatch.setattr(github, "policy_scan", lambda o, r: {"files": [], "ai_flags": [], "legal": []})
+    monkeypatch.setattr(github, "verify_issue", lambda o, r, n, light=False: (
+        {"ok": False, "reason": "someone said they are working on it", "checked_at": "t"} if (r, n) in claims
+        else {"ok": False, "reason": "an open pull request already references it (#9)", "checked_at": "t"} if (r, n) in prs
+        else {"ok": True, "reason": "", "checked_at": "2026-10-07T00:00:00+00:00"}))
+
+    def fake_ask(**kw):
+        import json as _j
+        cand = _j.loads(kw["messages"][0]["content"])["candidates"]
+        return {"text": _j.dumps({"picks": [{"repo": c["repo"], "number": c["number"], "fit": "f", "learn": "l", "hours": 2, "risk": "r"} for c in cand[:3]]}), "cost_usd": 0.001}
+
+    monkeypatch.setattr(agents.llm, "ask", fake_ask)
+    return agents, calls
+
+
+def test_scout_widens_labels_before_giving_up(monkeypatch):
+    agents, calls = _stub_scout(monkeypatch, {("user:acme", 1): [_issue("acme/x", 5)]})
+    res = agents.scout("acme", {"mode": "learn"}, "s")
+    assert [c[1] for c in calls] == [0, 1] and res["picks"] and res["org_used"] == "acme"
+
+
+def test_scout_falls_back_to_next_org_instead_of_dead_end(monkeypatch):
+    agents, calls = _stub_scout(monkeypatch, {("user:beta", 0): [_issue("beta/y", 9)]})
+    events = list(agents.scout_stream("alpha", {"mode": "learn"}, "s", fallbacks=["beta", "gamma"]))
+    res = events[-1]
+    assert res["org_used"] == "beta" and res["picks"][0]["repo"] == "beta/y"
+    assert any("Nothing open and unclaimed in alpha" in e.get("text", "") for e in events)
+    assert res["stats"]["tried"] == ["alpha", "beta"]
+
+
+def test_scout_drops_claimed_issues_and_says_so(monkeypatch):
+    agents, _ = _stub_scout(monkeypatch, {("user:acme", 0): [_issue("acme/x", 1), _issue("acme/x", 2)]}, claims={("x", 1)})
+    res = agents.scout("acme", {"mode": "learn"}, "s")
+    assert [p["number"] for p in res["picks"]] == [2] and res["stats"]["claimed"] == 1
+
+
+def test_scout_empty_everywhere_reports_stats_not_exception(monkeypatch):
+    agents, _ = _stub_scout(monkeypatch, {})
+    res = agents.scout("a", {"mode": "learn"}, "s", fallbacks=["b", "c", "d"])
+    assert res["picks"] == [] and res["stats"]["tried"] == ["a", "b", "c"]  # capped at three attempts
+
+
+def test_scout_makes_one_search_per_tier_not_one_per_issue(monkeypatch):
+    agents, calls = _stub_scout(monkeypatch, {("user:acme", 0): [_issue("acme/x", n) for n in range(1, 30)]})
+    agents.scout("acme", {"mode": "learn"}, "s")
+    assert len(calls) == 1  # the old design made a search per issue and hit GitHub's 30/min limit
+
+
+def test_claim_regex():
+    from backend.github import CLAIM_RE
+    for t in ["I'll take this", "Can I work on this?", "working on it", "please assign this to me", "I would like to work on this"]:
+        assert CLAIM_RE.search(t), t
+    for t in ["Thanks for the report", "this also breaks on windows", "see #123"]:
+        assert not CLAIM_RE.search(t), t
+
+
+def test_verify_issue_reports_reason(monkeypatch):
+    from backend import github
+    monkeypatch.setattr(github, "recent_claim", lambda *a: False)
+    def fake_get(path, params=None, token=None):
+        if path.endswith("/timeline"):
+            return [{"event": "cross-referenced", "source": {"issue": {"number": 77, "state": "open", "pull_request": {}}}}]
+        return {"state": "open", "assignees": []}
+    monkeypatch.setattr(github, "get", fake_get)
+    r = github.verify_issue("o", "r", 1)
+    assert r["ok"] is False and "#77" in r["reason"] and r["linked_prs"] == [77]
+    monkeypatch.setattr(github, "get", lambda path, params=None, token=None: [] if path.endswith("/timeline") else {"state": "open", "assignees": []})
+    assert github.verify_issue("o", "r", 1)["ok"] is True
+
+
+def test_scout_stream_endpoint_emits_ndjson(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    from backend import agents
+    monkeypatch.setattr(agents, "scout_stream", lambda *a, **k: iter([{"type": "step", "text": "hi"}, {"type": "result", "picks": []}]))
+    r = c.post("/api/scout/stream", json={"org": "x", "profile": {}}, cookies={"oss_session": "sidA"})
+    lines = [json.loads(l) for l in r.text.strip().splitlines()]
+    assert r.status_code == 200 and lines[0]["type"] == "step" and lines[-1]["type"] == "result"
+
+
+def test_scout_drops_issues_with_open_prs_and_counts_them(monkeypatch):
+    agents, _ = _stub_scout(monkeypatch, {("user:acme", 0): [_issue("acme/x", 1), _issue("acme/x", 2), _issue("acme/x", 3)]}, claims={("x", 1)}, prs={("x", 2)})
+    res = agents.scout("acme", {"mode": "learn"}, "s")
+    assert [p["number"] for p in res["picks"]] == [3]
+    assert res["stats"]["claimed"] == 1 and res["stats"]["has_pr"] == 1 and res["picks"][0]["verified_at"].startswith("2026-10-07")
