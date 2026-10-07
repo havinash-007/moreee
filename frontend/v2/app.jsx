@@ -22,7 +22,7 @@ async function api(path, body) {
 }
 
 export default function App() {
-  const { HeroSection, InterviewStep, MatchPodium, IssueBoard, WorkspaceView, RepliesInbox } = window.OSS;
+  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox } = window.OSS;
   const [view, setView] = React.useState('mentor');
   const [step, setStep] = React.useState('hero');
   const [me, setMe] = React.useState({ hosted: false, login: 'local' });
@@ -31,6 +31,11 @@ export default function App() {
   const [qi, setQi] = React.useState(0);
   const [answers, setAnswers] = React.useState({});
   const [ranking, setRanking] = React.useState([]);
+  const [others, setOthers] = React.useState([]);
+  const [catSize, setCatSize] = React.useState(0);
+  const [found, setFound] = React.useState(null);
+  const [discLoading, setDiscLoading] = React.useState(false);
+  const [discError, setDiscError] = React.useState('');
   const [org, setOrg] = React.useState(null);
   const [scout, setScout] = React.useState({ picks: [], skipped: [] });
   const [issue, setIssue] = React.useState(null);
@@ -80,7 +85,7 @@ export default function App() {
   React.useEffect(() => {
     if (step !== 'work' || !window.mermaid) return;
     const t = setTimeout(() => {
-      try { mermaid.initialize({ startOnLoad: false, theme: 'dark' }); mermaid.run({ querySelector: '.tour pre.mermaid' }); } catch {}
+      try { mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: { darkMode: true, background: '#0c0b09', primaryColor: '#1c1912', primaryBorderColor: '#E5C07B', primaryTextColor: '#F5EFE0', lineColor: '#E5C07B', secondaryColor: '#16140e', tertiaryColor: '#16140e', textColor: '#F5EFE0' } }); mermaid.run({ querySelector: '.tour pre.mermaid' }); } catch {}
     }, 150);
     return () => clearTimeout(t);
   }, [step, tourHtml, msgs.length]);
@@ -92,17 +97,27 @@ export default function App() {
   const next = () => {
     if (qi < qs.length - 1) return setQi(qi + 1);
     run(async () => {
-      const r = (await api('/api/match', answers)).ranking;
-      setRanking(r); setStep('matches');
+      const m = await api('/api/match', answers);
+      const r = m.ranking;
+      setRanking(r); setOthers(m.others || []); setCatSize(m.catalogue_size || 0); setFound(null); setDiscError(''); setStep('matches');
       stage3d('ranked', { focus: r.map((x) => x.org), scores: Object.fromEntries(r.map((x) => [x.org, x.total])) });
     });
   };
-  const choose = (i) => run(async () => {
-    const o = ranking[i]; setOrg(o); stage3d('selected', { pick: o.org });
-    try { setScout(await api('/api/scout', { org: o.github, profile: answers })); }
-    catch (e) { stage3d('ranked', { focus: ranking.map((x) => x.org), scores: Object.fromEntries(ranking.map((x) => [x.org, x.total])) }); throw e; }
+  const back3d = () => stage3d('ranked', { focus: ranking.map((x) => x.org), scores: Object.fromEntries(ranking.map((x) => [x.org, x.total])) });
+  const scoutOrg = (o, repo) => run(async () => {
+    setOrg(o); stage3d('selected', { pick: o.org });
+    try { setScout(await api('/api/scout', { org: o.github, repo: repo || null, profile: answers })); }
+    catch (e) { back3d(); throw e; }
     setStep('issues'); stage3d('working', { pick: o.org });
   });
+  const choose = (i) => scoutOrg(ranking[i]);
+  const chooseRepo = (r) => scoutOrg({ org: r.repo, github: r.owner }, r.repo);
+  const discover = async () => {
+    setDiscLoading(true); setDiscError('');
+    try { setFound((await api(`/api/discover?languages=${encodeURIComponent((answers.languages || []).join(','))}&interests=${encodeURIComponent((answers.interests || []).join(','))}`)).repos); }
+    catch (e) { if (e.login) setMe({ hosted: true, login: null }); else setDiscError(e.message); }
+    finally { setDiscLoading(false); }
+  };
   const pickIssue = (i) => run(async () => {
     const p = scout.picks[i];
     const t = await api('/api/tour', { repo: p.repo, issue_title: p.title, level: answers.skill || 'beginner' });
@@ -135,8 +150,8 @@ export default function App() {
     <div>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-4 py-3 md:px-8">
-          <button onClick={reset} className="text-xl font-black tracking-tighter text-white">
-            OSS<span className="bg-gradient-to-r from-violet-400 to-pink-400 bg-clip-text text-transparent">Mentor</span>
+          <button onClick={reset} className="display text-3xl leading-none text-white">
+            OSS <em className="bg-gradient-to-r from-amber-100 to-yellow-500 bg-clip-text pr-1 text-transparent">Mentor</em>
           </button>
           <nav className="ml-2 flex gap-1" aria-label="Main">
             {[['mentor', 'Mentor'], ['replies', 'PR replies']].map(([id, label]) => (
@@ -179,10 +194,14 @@ export default function App() {
             value={answers[q.id] ?? (q.multi ? [] : '')} fitCount={qi >= 1 ? fitCount : null}
             onChange={(v) => setAnswers({ ...answers, [q.id]: v })} onBack={() => setQi(Math.max(0, qi - 1))} onNext={next} />
         ) : step === 'matches' ? (
-          <MatchPodium matches={ranking} busy={busy} onChoose={choose} />
+          <>
+            <MatchPodium matches={ranking} busy={busy} onChoose={choose} />
+            <DiscoverPanel others={others} found={found} loading={discLoading} error={discError} catalogueSize={catSize} busy={busy}
+              onChooseOrg={(o) => scoutOrg(o)} onChooseRepo={chooseRepo} onDiscover={discover} />
+          </>
         ) : step === 'issues' ? (
           <IssueBoard issues={scout.picks} org={org ? org.org : ''} skipped={scout.skipped} busy={busy} onPick={pickIssue}
-            onBack={() => { setStep('matches'); stage3d('ranked', { focus: ranking.map((x) => x.org), scores: Object.fromEntries(ranking.map((x) => [x.org, x.total])) }); }} />
+            onBack={() => { setStep('matches'); back3d(); }} />
         ) : step === 'work' && issue ? (
           answers.mode === 'full' ? (
             <section className="mx-auto max-w-3xl px-6 py-20">

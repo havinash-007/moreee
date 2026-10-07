@@ -117,3 +117,45 @@ def repo_overview(owner: str, repo: str) -> dict:
         "readme": (raw_file(owner, repo, "README.md") or "")[:4000],
         "contributing": (raw_file(owner, repo, "CONTRIBUTING.md") or raw_file(owner, repo, ".github/CONTRIBUTING.md") or "")[:3000],
     }
+
+
+TOPICS = {
+    "web": ["web", "frontend"], "ai-ml-data": ["machine-learning", "data-science"],
+    "cloud-devops": ["devops", "kubernetes"], "security": ["security"], "mobile": ["android", "mobile"],
+    "devtools": ["developer-tools", "cli"], "education": ["education"],
+    "social": ["social-good", "hacktoberfest"], "creative": ["game-engine", "creative-coding"],
+}
+
+
+def discover(languages: list[str], interests: list[str], known: set[str], limit: int = 12) -> list[dict]:
+    """Live search for active repos with open good-first-issues, grouped by owner.
+    GitHub's search qualifiers do the filtering (no model tokens). Results are unrated and unverified."""
+    from datetime import date, timedelta
+    since = (date.today() - timedelta(days=90)).isoformat()
+    langs = (languages or [None])[:2]
+    topics = [t for i in (interests or [])[:2] for t in TOPICS.get(i, [])[:1]] or [None]
+    seen: dict[str, dict] = {}
+    for lang in langs:
+        for topic in topics[:2]:
+            q = f"good-first-issues:>3 stars:>200 pushed:>{since} archived:false fork:false"
+            if lang:
+                q += f" language:{lang}"
+            if topic:
+                q += f" topic:{topic}"
+            data = get("/search/repositories", {"q": q, "sort": "help-wanted-issues", "order": "desc", "per_page": 15})
+            for r in data.get("items", []):
+                owner = r["owner"]["login"]
+                if owner.lower() in known or r.get("full_name") in seen:
+                    continue
+                seen[r["full_name"]] = {
+                    "repo": r["full_name"], "owner": owner, "description": (r.get("description") or "")[:200],
+                    "language": r.get("language"), "stars": r.get("stargazers_count", 0),
+                    "pushed": (r.get("pushed_at") or "")[:10], "topics": (r.get("topics") or [])[:5],
+                    "license": (r.get("license") or {}).get("spdx_id"), "url": r["html_url"],
+                    "open_issues": r.get("open_issues_count", 0), "matched": {"language": lang, "topic": topic},
+                }
+    # one repo per owner, most-starred first, so the list shows variety rather than one org's whole portfolio
+    best: dict[str, dict] = {}
+    for r in sorted(seen.values(), key=lambda x: x["stars"], reverse=True):
+        best.setdefault(r["owner"].lower(), r)
+    return list(best.values())[:limit]

@@ -41,8 +41,11 @@ PROFILE = dict(languages=["Python"], skill="beginner", interests=["web"], goal="
 
 def test_matcher_prefers_fit():
     top = matcher.rank(PROFILE, top=3)
-    assert top[0]["org"] in ("Zulip", "Oppia", "Home Assistant")
+    orgs = {o["name"]: o for o in matcher.catalogue()}
     assert all(0 <= t["total"] <= 55 for t in top)
+    assert top[0]["total"] >= top[1]["total"] >= top[2]["total"]
+    for t in top:  # a Python/web beginner on a low-spec laptop must not be sent to heavy, advanced projects
+        assert "Python" in orgs[t["org"]]["languages"] and orgs[t["org"]]["beginner"] >= 3
 
 
 def test_matcher_cla_gate():
@@ -241,7 +244,7 @@ def test_token_reaches_endpoint_thread(monkeypatch):
     c, auth = _hosted(monkeypatch)
     from backend import agents
     seen = {}
-    monkeypatch.setattr(agents, "scout", lambda org, profile, sid: seen.update(tok=auth.current_token.get(), sid=sid) or {"picks": []})
+    monkeypatch.setattr(agents, "scout", lambda org, profile, sid, repo=None: seen.update(tok=auth.current_token.get(), sid=sid) or {"picks": []})
     r = c.post("/api/scout", json={"org": "zulip", "profile": {}}, cookies={"oss_session": "sidB"})
     assert r.status_code == 200 and seen == {"tok": "tokB", "sid": "bob"}
 
@@ -251,3 +254,54 @@ def test_orgs_endpoint_is_public_and_minimal(monkeypatch):
     r = c.get("/api/orgs")  # no login: the 3D galaxy must render before sign-in
     assert r.status_code == 200 and len(r.json()) >= 10
     assert set(r.json()[0]) == {"name", "github", "languages", "domains", "beginner", "notes"}
+
+
+def test_catalogue_is_large_and_well_formed():
+    cat = matcher.catalogue()
+    assert len(cat) >= 100
+    names = [o["name"] for o in cat]
+    logins = [o["github"].lower() for o in cat]
+    assert len(set(names)) == len(names) and len(set(logins)) == len(logins)
+    for o in cat:
+        assert o["languages"] and o["domains"] and o["setup"] in ("light", "medium", "heavy")
+        assert 1 <= o["beginner"] <= 5 and 1 <= o["hackathon"] <= 5
+
+
+def test_every_quiz_interest_and_language_has_orgs():
+    from backend.app import QUESTIONS
+    cat = matcher.catalogue()
+    for q in QUESTIONS:
+        if q["id"] == "interests":
+            for v, _ in q["options"]:
+                assert any(v in o["domains"] for o in cat), v
+        if q["id"] == "languages":
+            for v, _ in q["options"]:
+                assert any(v in o["languages"] for o in cat), v
+
+
+def test_rank_all_returns_runner_ups_without_gated(monkeypatch):
+    top, others = matcher.rank_all({**PROFILE, "legal": "dco"})
+    assert len(top) == 3 and 1 <= len(others) <= 12
+    assert all(not o["gate"] for o in others) and not {t["org"] for t in top} & {o["org"] for o in others}
+
+
+def test_discover_dedupes_known_and_one_per_owner(monkeypatch):
+    from backend import github
+    def item(full, stars, owner=None):
+        o = owner or full.split("/")[0]
+        return {"full_name": full, "owner": {"login": o}, "stargazers_count": stars, "description": "d", "language": "Python",
+                "pushed_at": "2026-09-01T00:00:00Z", "topics": [], "license": None, "html_url": "u", "open_issues_count": 5}
+    queries = []
+    def fake_get(path, params=None, token=None):
+        queries.append(params["q"])
+        return {"items": [item("zulip/zulip", 99999), item("a/x", 500), item("a/y", 900), item("b/z", 700)]}
+    monkeypatch.setattr(github, "get", fake_get)
+    out = github.discover(["Python"], ["web"], known={"zulip"})
+    assert [r["repo"] for r in out] == ["a/y", "b/z"]          # known org removed, one repo per owner, by stars
+    assert "good-first-issues:>3" in queries[0] and "language:Python" in queries[0] and "topic:web" in queries[0]
+    assert "archived:false" in queries[0]
+
+
+def test_discover_endpoint_requires_login_when_hosted(monkeypatch):
+    c, _ = _hosted(monkeypatch)
+    assert c.get("/api/discover?languages=Python").status_code == 401

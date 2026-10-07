@@ -2,7 +2,7 @@
    Explore: drag to rotate, hover for details.  Ranked: your top matches fly to the front, click one to choose it.
    Purely decorative + a shortcut: every action also exists as a normal button, and it degrades to nothing without WebGL. */
 (function () {
-  const COLORS = { web: 0x6ea8ff, 'ai-ml-data': 0xc084fc, 'cloud-devops': 0x34d399, security: 0xfb7185, mobile: 0xfbbf24, devtools: 0x22d3ee, education: 0xf472b6 };
+  const COLORS = { web: 0x7db7ff, 'ai-ml-data': 0xe8c468, 'cloud-devops': 0x3fd0a0, security: 0xff7a6b, mobile: 0xf5a623, devtools: 0x4fd1d9, education: 0xf2b8a0, social: 0xb5e36a, creative: 0xff9a4d };
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const Scene = { available: false, onPick: null };
   window.Scene = Scene;
@@ -37,17 +37,17 @@
     for (let i = 0; i < N; i++) { const r = 40 + Math.random() * 60, a = Math.random() * TAU, b = Math.acos(2 * Math.random() - 1);
       pos[i * 3] = r * Math.sin(b) * Math.cos(a); pos[i * 3 + 1] = r * Math.sin(b) * Math.sin(a); pos[i * 3 + 2] = r * Math.cos(b); }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xaab4ff, size: 0.35, transparent: true, opacity: 0.8, depthWrite: false }));
+    stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xf1e6c8, size: 0.35, transparent: true, opacity: 0.8, depthWrite: false }));
     scene.add(stars);
 
     // organisations on a golden-spiral shell
     group = new THREE.Group(); scene.add(group);
     const glow = glowTexture(), n = orgs.length, golden = Math.PI * (3 - Math.sqrt(5));
     orgs.forEach((o, i) => {
-      const y = 1 - (i / (n - 1)) * 2, rad = Math.sqrt(1 - y * y), th = i * golden, R = 6.2;
+      const y = 1 - (i / (n - 1)) * 2, rad = Math.sqrt(1 - y * y), th = i * golden, R = n > 30 ? 7.4 : 6.2;
       const home = new THREE.Vector3(Math.cos(th) * rad * R, y * R * 0.75, Math.sin(th) * rad * R);
-      const col = COLORS[o.domains[0]] || 0x8b85ff, size = 0.38 + o.beginner * 0.07;
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 32, 32),
+      const crowd = Math.max(0.42, Math.sqrt(14 / n)), col = COLORS[o.domains[0]] || 0xe5c07b, size = (0.38 + o.beginner * 0.07) * crowd;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, n > 30 ? 16 : 32, n > 30 ? 16 : 32),
         new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1, transparent: true }));
       const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55 }));
       halo.scale.setScalar(size * 5); mesh.add(halo);
@@ -81,7 +81,7 @@
     stage = s; focus = opts.focus || focus;
     const byName = n => nodes.find(x => x.org.name === n);
     nodes.forEach(n => { n.tScale = 1; n.tOpacity = 1; n.tPos.copy(n.home); });
-    if (s === 'explore') { focus = []; selected = null; camTarget.z = 20; drag.vx = 0.0016; }
+    if (s === 'explore') { focus = []; selected = null; camTarget.z = nodes.length > 30 ? 22 : 20; drag.vx = 0.0016; }
     if (s === 'ranked') {
       drag.vx = 0; group.rotation.y = ((group.rotation.y % TAU) + TAU) % TAU; if (group.rotation.y > Math.PI) group.rotation.y -= TAU;
       nodes.forEach(n => { n.tOpacity = 0.18; n.tScale = 0.8; });
@@ -92,7 +92,7 @@
       camTarget.z = 17;
     }
     if (s === 'selected' || s === 'working') {
-      drag.vx = 0; selected = byName(opts.pick) || selected;
+      drag.vx = 0; selected = byName(opts.pick) || null;
       nodes.forEach(n => { n.tOpacity = 0.12; n.tScale = 0.7; });
       if (selected) { selected.tOpacity = 1; selected.tScale = s === 'selected' ? 2.6 : 0.8;
         const ox = innerWidth >= 900 ? 3.4 : 0; selected.tPos.set(s === 'selected' ? ox : (innerWidth >= 900 ? 10.3 : 3.5), s === 'selected' ? 0 : -5.2, s === 'selected' ? 3 : 0); }
@@ -117,7 +117,7 @@
     else { group.rotation.x = lerp(group.rotation.x, 0, 0.06); group.rotation.y = lerp(group.rotation.y, 0, 0.06); }
     stars.rotation.y = time * 0.004;
 
-    group.position.x = lerp(group.position.x, stage === 'explore' && innerWidth >= 900 ? 5.4 : 0, 0.05);
+    group.position.x = lerp(group.position.x, stage === 'explore' && innerWidth >= 900 ? (nodes.length > 30 ? 7.8 : 5.4) : 0, 0.05);
     camera.position.x = lerp(camera.position.x, mouse.x * 2.2, 0.05);
     camera.position.y = lerp(camera.position.y, -mouse.y * 1.6, 0.05);
     camera.position.z = lerp(camera.position.z, camTarget.z, 0.05);
@@ -142,7 +142,8 @@
       // label follows the node
       const p = n.mesh.getWorldPosition(new THREE.Vector3()).project(camera);
       const show = n.mesh.material.opacity > 0.5 || n === hovered;
-      n.label.style.opacity = show && p.z < 1 ? (stage === 'explore' ? 0.8 : 1) : 0;
+      const crowded = nodes.length > 30 && stage === 'explore' && n !== hovered;
+      n.label.style.opacity = show && p.z < 1 && !crowded ? (stage === 'explore' ? 0.8 : 1) : 0;
       n.label.style.transform = `translate(${(p.x * 0.5 + 0.5) * innerWidth}px,${(-p.y * 0.5 + 0.5) * innerHeight + 14 + n.mesh.scale.x * n.size * 16}px) translateX(-50%)`;
     });
 

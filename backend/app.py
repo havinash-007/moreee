@@ -29,12 +29,13 @@ QUESTIONS = [
         ["semi", "Semi-auto: I vibe code with AI, you quiz me"],
         ["full", "Full-auto: agents do it, I supervise"]]},
     {"id": "languages", "q": "Which languages can you read comfortably?", "multi": True, "options": [
-        [x, x] for x in ["Python", "JavaScript", "TypeScript", "Java", "Go", "Rust", "C++"]]},
+        [x, x] for x in ["Python", "JavaScript", "TypeScript", "Java", "Go", "Rust", "C", "C++", "Ruby", "PHP", "Kotlin", "Swift", "Dart"]]},
     {"id": "skill", "q": "How strong are you in your best language?", "multi": False, "options": [
         ["beginner", "Beginner (courses only)"], ["intermediate", "Intermediate (built projects)"], ["advanced", "Advanced"]]},
     {"id": "interests", "q": "What are you most curious about?", "multi": True, "options": [
         ["web", "Web apps"], ["ai-ml-data", "AI / ML / data"], ["cloud-devops", "Cloud / DevOps"],
-        ["security", "Security"], ["mobile", "Mobile"], ["devtools", "Developer tools"], ["education", "Docs / education"]]},
+        ["security", "Security"], ["mobile", "Mobile"], ["devtools", "Developer tools"], ["education", "Docs / education"],
+        ["social", "Social good / open science"], ["creative", "Games / creative coding"]]},
     {"id": "goal", "q": "What is your main goal?", "multi": False, "options": [
         ["hackathon", "A hackathon"], ["job", "Internship / job"], ["gsoc", "Google Summer of Code"], ["learn", "Learn and build a portfolio"]]},
     {"id": "time", "q": "How much time do you have?", "multi": False, "options": [
@@ -65,6 +66,7 @@ class Profile(BaseModel):
 
 class ScoutReq(BaseModel):
     org: str
+    repo: str | None = None
     profile: Profile
     session: str = "default"
 
@@ -139,12 +141,23 @@ def questions():
 
 @app.post("/api/match")
 def match(p: Profile, user: auth.User = Depends(auth.require_user)):
-    return {"ranking": matcher.rank(p.model_dump(), top=3), "cost_usd": 0.0}
+    top, others = matcher.rank_all(p.model_dump())
+    return {"ranking": top, "others": others, "catalogue_size": len(matcher.catalogue()), "cost_usd": 0.0}
+
+
+@app.get("/api/discover")
+def discover(languages: str = "", interests: str = "", user: auth.User = Depends(auth.require_user)):
+    """Live GitHub search for repos with open good-first-issues that are not already in our catalogue."""
+    from . import github
+    known = {o["github"].lower() for o in matcher.catalogue()}
+    langs = [x for x in languages.split(",") if x]
+    ints = [x for x in interests.split(",") if x]
+    return {"repos": github.discover(langs, ints, known), "cost_usd": 0.0}
 
 
 @app.post("/api/scout")
 def scout(r: ScoutReq, user: auth.User = Depends(auth.require_user)):
-    return agents.scout(r.org, r.profile.model_dump(), user.login)
+    return agents.scout(r.org, r.profile.model_dump(), user.login, r.repo)
 
 
 @app.post("/api/tour")

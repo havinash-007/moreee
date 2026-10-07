@@ -37,7 +37,7 @@ function Radar({ parts, hot }) {
       {[0.4, 0.7, 1].map((s) => (
         <polygon key={s} points={AXES.map((_, i) => pt(i, R * s).join(',')).join(' ')} fill="none" stroke="rgba(255,255,255,0.12)" />
       ))}
-      <polygon points={poly} fill={hot ? 'rgba(244,114,182,0.35)' : 'rgba(167,139,250,0.3)'} stroke={hot ? '#f472b6' : '#a78bfa'} strokeWidth="2" />
+      <polygon points={poly} fill={hot ? 'rgba(229,192,123,0.30)' : 'rgba(94,234,212,0.20)'} stroke={hot ? '#E5C07B' : '#5EEAD4'} strokeWidth="2" />
       {AXES.map(([k, label], i) => {
         const [x, y] = pt(i, R + 15);
         return (
@@ -55,9 +55,9 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
   const order = matches.length === 3 ? [1, 0, 2] : matches.map((_, i) => i);
   return (
     <section className="mx-auto max-w-6xl px-6 py-16">
-      <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">Your matches</p>
-      <h2 className="mt-3 text-5xl font-black leading-none tracking-tighter text-white md:text-7xl">
-        Meet your <span className="bg-gradient-to-r from-violet-400 to-pink-400 bg-clip-text text-transparent">top three.</span>
+      <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">Your matches</p>
+      <h2 className="mt-3 text-6xl leading-[0.95] text-white md:text-8xl">
+        Meet your <em className="bg-gradient-to-r from-amber-100 to-yellow-500 bg-clip-text pr-1 text-transparent">top three.</em>
       </h2>
       <p className="mt-5 max-w-2xl text-lg font-medium text-zinc-300">
         Scored on language, interest, beginner-friendliness, goal and setup. Ratings are our judgement, so we double-check live before you commit.
@@ -71,17 +71,17 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
               key={m.org}
               className={`relative rounded-3xl border p-6 backdrop-blur transition duration-200 hover:-translate-y-1 ${
                 first
-                  ? 'border-pink-400/60 bg-gradient-to-b from-violet-600/30 to-zinc-950/80 shadow-[0_0_80px_-20px_rgba(217,70,239,0.8)] md:-translate-y-6 md:pb-8'
+                  ? 'border-amber-300/60 bg-gradient-to-b from-amber-500/15 to-zinc-950/80 shadow-[0_0_80px_-20px_rgba(229,192,123,0.5)] md:-translate-y-6 md:pb-8'
                   : 'border-white/10 bg-zinc-950/70'
               } ${m.gate ? 'opacity-60' : ''}`}
             >
-              <span className="absolute -top-5 left-6 text-7xl font-black leading-none text-transparent [-webkit-text-stroke:2px_rgba(255,255,255,0.35)]">
+              <span className="display absolute -top-6 left-6 text-8xl leading-none text-transparent [-webkit-text-stroke:2px_rgba(255,255,255,0.35)]">
                 {i + 1}
               </span>
               <div className="mt-8 flex items-start justify-between gap-3">
-                <h3 className="text-3xl font-black leading-tight tracking-tight text-white">{m.org}</h3>
+                <h3 className="text-4xl leading-tight text-white">{m.org}</h3>
                 <div className="text-right">
-                  <div className="text-4xl font-black text-white">{m.total}</div>
+                  <div className="display text-5xl text-white">{m.total}</div>
                   <div className="text-xs font-bold text-zinc-500">of {m.max}</div>
                 </div>
               </div>
@@ -109,7 +109,7 @@ export default function MatchPodium({ matches = [], onChoose = () => {}, busy = 
               <button
                 onClick={() => onChoose(i)}
                 disabled={busy || !!m.gate}
-                className={`mt-6 w-full rounded-full px-6 py-3.5 text-base font-extrabold transition duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
+                className={`mt-6 w-full rounded-full px-6 py-3.5 text-base font-extrabold transition duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
                   first ? 'bg-white text-zinc-950 hover:brightness-110' : 'border-2 border-white/25 text-white hover:border-white/60'
                 }`}
               >

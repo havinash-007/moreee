@@ -1,5 +1,5 @@
 {
- "_note": "Starting catalogue only. Ratings are the author's judgement (1-5), not measured. ALWAYS verify live with gh (recent outside merges, CONTRIBUTING, AI policy, DCO/CLA) before recommending. Add or remove orgs freely. `legal` is a best guess (cla/dco/none/varies): confirm in CONTRIBUTING before the student commits.",
+ "_note": "Starting catalogue only (curated by the author, not a ranking of quality). Ratings are the author's judgement (1-5), not measured. ALWAYS verify live with gh (recent outside merges, CONTRIBUTING, AI policy, DCO/CLA) before recommending. Add or remove orgs freely. `legal` is a best guess (cla/dco/none/varies): confirm in CONTRIBUTING before the student commits.",
  "orgs": [
   {
    "name": "Zulip",
@@ -257,6 +257,1922 @@
    "setup": "medium",
    "notes": "Each project differs; mailing-list culture; GSoC participant.",
    "gsoc": true,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Vue.js",
+   "github": "vuejs",
+   "languages": [
+    "TypeScript",
+    "JavaScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Progressive web framework with many small repos (core, router, docs).",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Svelte",
+   "github": "sveltejs",
+   "languages": [
+    "TypeScript",
+    "JavaScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Compiler-based UI framework; friendly issue labels and a docs site to improve.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Angular",
+   "github": "angular",
+   "languages": [
+    "TypeScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Large web framework; strict contribution and commit conventions.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Next.js / Vercel",
+   "github": "vercel",
+   "languages": [
+    "TypeScript",
+    "JavaScript",
+    "Rust"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "React framework and tooling; big monorepo, fast-moving.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Node.js",
+   "github": "nodejs",
+   "languages": [
+    "JavaScript",
+    "C++"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "JavaScript runtime; docs and tests are common first contributions.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Vite",
+   "github": "vitejs",
+   "languages": [
+    "TypeScript"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Frontend build tool; plugin and docs work is approachable.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Babel",
+   "github": "babel",
+   "languages": [
+    "JavaScript"
+   ],
+   "domains": [
+    "devtools",
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "JavaScript compiler with a clear plugin architecture.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "ESLint",
+   "github": "eslint",
+   "languages": [
+    "JavaScript"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Linter with many rule-level issues that are small and testable.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Tailwind CSS",
+   "github": "tailwindlabs",
+   "languages": [
+    "JavaScript",
+    "TypeScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Utility-first CSS framework and ecosystem.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Storybook",
+   "github": "storybookjs",
+   "languages": [
+    "TypeScript",
+    "JavaScript"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "UI component workshop; many framework integrations.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "freeCodeCamp",
+   "github": "freeCodeCamp",
+   "languages": [
+    "TypeScript",
+    "JavaScript"
+   ],
+   "domains": [
+    "education",
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Learning platform; curriculum and UI fixes. Easy issues are claimed fast.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Deno",
+   "github": "denoland",
+   "languages": [
+    "Rust",
+    "TypeScript"
+   ],
+   "domains": [
+    "devtools",
+    "web"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Secure JavaScript/TypeScript runtime written in Rust.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Bun",
+   "github": "oven-sh",
+   "languages": [
+    "Zig",
+    "TypeScript",
+    "C++"
+   ],
+   "domains": [
+    "devtools",
+    "web"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "All-in-one JavaScript runtime and toolkit.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Astro",
+   "github": "withastro",
+   "languages": [
+    "TypeScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Content-focused web framework with a welcoming community and docs.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Redux",
+   "github": "reduxjs",
+   "languages": [
+    "TypeScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "State management libraries and docs.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "TanStack",
+   "github": "TanStack",
+   "languages": [
+    "TypeScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Query, Table, Router and other headless libraries.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Hugging Face",
+   "github": "huggingface",
+   "languages": [
+    "Python",
+    "TypeScript",
+    "Rust"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Transformers, Datasets, Hub libraries; docs and small fixes are frequent.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "PyTorch",
+   "github": "pytorch",
+   "languages": [
+    "Python",
+    "C++"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 2,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Deep learning framework; large C++/Python codebase.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "TensorFlow",
+   "github": "tensorflow",
+   "languages": [
+    "Python",
+    "C++"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Machine learning platform; heavy build.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Keras",
+   "github": "keras-team",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "High-level deep learning API; readable Python.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "pandas",
+   "github": "pandas-dev",
+   "languages": [
+    "Python",
+    "C"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Data analysis library with a documented contributor path.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Matplotlib",
+   "github": "matplotlib",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "education"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Plotting library; docs and examples welcome.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Jupyter",
+   "github": "jupyter",
+   "languages": [
+    "Python",
+    "TypeScript"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Notebook ecosystem with many repositories.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "LangChain",
+   "github": "langchain-ai",
+   "languages": [
+    "Python",
+    "TypeScript"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 5,
+   "setup": "light",
+   "notes": "LLM application framework; integrations and docs change quickly.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Ollama",
+   "github": "ollama",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Run language models locally.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "llama.cpp / ggml",
+   "github": "ggml-org",
+   "languages": [
+    "C++",
+    "C"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 2,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Efficient LLM inference in C/C++.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "MLflow",
+   "github": "mlflow",
+   "languages": [
+    "Python",
+    "TypeScript"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "ML lifecycle platform.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Ray",
+   "github": "ray-project",
+   "languages": [
+    "Python",
+    "C++"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Distributed computing for AI.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Lightning AI",
+   "github": "Lightning-AI",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "PyTorch Lightning and related tools.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "spaCy / Explosion",
+   "github": "explosion",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Natural language processing library.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Scrapy",
+   "github": "scrapy",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Web scraping framework with clear module boundaries.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "NetworkX",
+   "github": "networkx",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "education"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Graph algorithms library; good first issues are common.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "SymPy",
+   "github": "sympy",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "education"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Symbolic mathematics in pure Python.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Terraform / HashiCorp",
+   "github": "hashicorp",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Infrastructure as code; provider and docs fixes.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Helm",
+   "github": "helm",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Kubernetes package manager.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Argo",
+   "github": "argoproj",
+   "languages": [
+    "Go",
+    "TypeScript"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "GitOps and workflow tools for Kubernetes.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Grafana",
+   "github": "grafana",
+   "languages": [
+    "Go",
+    "TypeScript"
+   ],
+   "domains": [
+    "cloud-devops",
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Observability platform with Go back end and React front end.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "etcd",
+   "github": "etcd-io",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Distributed key-value store.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Envoy",
+   "github": "envoyproxy",
+   "languages": [
+    "C++"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Cloud-native proxy.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Istio",
+   "github": "istio",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Service mesh.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Cilium",
+   "github": "cilium",
+   "languages": [
+    "Go",
+    "C"
+   ],
+   "domains": [
+    "cloud-devops",
+    "security"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "eBPF-based networking and security.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "containerd",
+   "github": "containerd",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Container runtime.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Ansible",
+   "github": "ansible",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "IT automation; modules and docs.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Backstage",
+   "github": "backstage",
+   "languages": [
+    "TypeScript"
+   ],
+   "domains": [
+    "cloud-devops",
+    "web",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Developer portal framework.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Flux",
+   "github": "fluxcd",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "GitOps for Kubernetes.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Jaeger",
+   "github": "jaegertracing",
+   "languages": [
+    "Go",
+    "TypeScript"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Distributed tracing.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Traefik",
+   "github": "traefik",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops",
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Cloud-native reverse proxy.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Caddy",
+   "github": "caddyserver",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "web",
+    "cloud-devops"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Web server with automatic HTTPS.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "MinIO",
+   "github": "minio",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "S3-compatible object storage.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "OWASP",
+   "github": "OWASP",
+   "languages": [
+    "Python",
+    "Java",
+    "JavaScript"
+   ],
+   "domains": [
+    "security",
+    "education"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Many security projects and learning resources.",
+   "gsoc": true,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Aqua Security (Trivy)",
+   "github": "aquasecurity",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "security",
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Vulnerability and misconfiguration scanner.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Sigstore",
+   "github": "sigstore",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "security"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Software signing and verification.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Falco",
+   "github": "falcosecurity",
+   "languages": [
+    "C++",
+    "Go"
+   ],
+   "domains": [
+    "security",
+    "cloud-devops"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Runtime security.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "ProjectDiscovery",
+   "github": "projectdiscovery",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "security"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Open-source security tools such as nuclei.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "ZAP",
+   "github": "zaproxy",
+   "languages": [
+    "Java",
+    "JavaScript"
+   ],
+   "domains": [
+    "security"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Web application security scanner.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Semgrep",
+   "github": "semgrep",
+   "languages": [
+    "OCaml",
+    "Python"
+   ],
+   "domains": [
+    "security",
+    "devtools"
+   ],
+   "beginner": 2,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Static analysis; rules are an approachable contribution.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Flutter",
+   "github": "flutter",
+   "languages": [
+    "Dart",
+    "C++"
+   ],
+   "domains": [
+    "mobile"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Cross-platform UI toolkit.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Dart",
+   "github": "dart-lang",
+   "languages": [
+    "Dart"
+   ],
+   "domains": [
+    "mobile",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Dart language and core packages.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Expo",
+   "github": "expo",
+   "languages": [
+    "TypeScript",
+    "Kotlin",
+    "Swift"
+   ],
+   "domains": [
+    "mobile"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "React Native tooling.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Signal",
+   "github": "signalapp",
+   "languages": [
+    "Kotlin",
+    "Swift",
+    "TypeScript"
+   ],
+   "domains": [
+    "mobile",
+    "security"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Private messenger; strict contribution rules.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Mastodon",
+   "github": "mastodon",
+   "languages": [
+    "Ruby",
+    "TypeScript"
+   ],
+   "domains": [
+    "web",
+    "mobile"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Federated social network.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "AntennaPod",
+   "github": "AntennaPod",
+   "languages": [
+    "Java",
+    "Kotlin"
+   ],
+   "domains": [
+    "mobile"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Android podcast manager with beginner-labelled issues.",
+   "gsoc": false,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "Nextcloud",
+   "github": "nextcloud",
+   "languages": [
+    "PHP",
+    "JavaScript",
+    "Kotlin"
+   ],
+   "domains": [
+    "web",
+    "mobile"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Self-hosted collaboration with many apps.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Square (OkHttp)",
+   "github": "square",
+   "languages": [
+    "Kotlin",
+    "Java"
+   ],
+   "domains": [
+    "mobile",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Android and Kotlin libraries.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "JetBrains (Kotlin)",
+   "github": "JetBrains",
+   "languages": [
+    "Kotlin",
+    "Java"
+   ],
+   "domains": [
+    "devtools",
+    "mobile"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Kotlin language and IDE tooling.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Swift",
+   "github": "swiftlang",
+   "languages": [
+    "Swift",
+    "C++"
+   ],
+   "domains": [
+    "mobile",
+    "devtools"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "heavy",
+   "notes": "Swift language and compiler.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Neovim",
+   "github": "neovim",
+   "languages": [
+    "C",
+    "Lua"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Modern Vim; many small fixes.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "VS Code / Microsoft",
+   "github": "microsoft",
+   "languages": [
+    "TypeScript",
+    "C#",
+    "Python"
+   ],
+   "domains": [
+    "devtools",
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Many projects including VS Code and TypeScript.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Go language",
+   "github": "golang",
+   "languages": [
+    "Go"
+   ],
+   "domains": [
+    "devtools",
+    "cloud-devops"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Go compiler and standard library; Gerrit-based review.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "CPython",
+   "github": "python",
+   "languages": [
+    "Python",
+    "C"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Python itself; documentation and tests are good starts.",
+   "gsoc": false,
+   "brand": 5,
+   "legal": "varies"
+  },
+  {
+   "name": "Ruby",
+   "github": "ruby",
+   "languages": [
+    "Ruby",
+    "C"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Ruby language.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Julia",
+   "github": "JuliaLang",
+   "languages": [
+    "Julia"
+   ],
+   "domains": [
+    "ai-ml-data",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Language for technical computing.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Homebrew",
+   "github": "Homebrew",
+   "languages": [
+    "Ruby"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "macOS and Linux package manager; formulae are small.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Oh My Zsh",
+   "github": "ohmyzsh",
+   "languages": [
+    "Shell"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Zsh framework with many plugins.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Zig",
+   "github": "ziglang",
+   "languages": [
+    "Zig"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 2,
+   "hackathon": 2,
+   "setup": "medium",
+   "notes": "Systems programming language.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Helix",
+   "github": "helix-editor",
+   "languages": [
+    "Rust"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Modal text editor in Rust.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Astral (Ruff, uv)",
+   "github": "astral-sh",
+   "languages": [
+    "Rust",
+    "Python"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Fast Python tooling written in Rust.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Pallets (Flask)",
+   "github": "pallets",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Flask, Jinja, Click and friends.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Encode (Starlette, httpx)",
+   "github": "encode",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Async web and HTTP libraries.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "FastAPI",
+   "github": "tiangolo",
+   "languages": [
+    "Python"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Python API framework.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Pydantic",
+   "github": "pydantic",
+   "languages": [
+    "Python",
+    "Rust"
+   ],
+   "domains": [
+    "web",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Data validation for Python.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Exercism",
+   "github": "exercism",
+   "languages": [
+    "Python",
+    "JavaScript",
+    "Go",
+    "Rust"
+   ],
+   "domains": [
+    "education"
+   ],
+   "beginner": 5,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Language-learning exercises; maintainers welcome newcomers.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Open edX",
+   "github": "openedx",
+   "languages": [
+    "Python",
+    "JavaScript"
+   ],
+   "domains": [
+    "education",
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Online learning platform.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Scratch Foundation",
+   "github": "scratchfoundation",
+   "languages": [
+    "JavaScript"
+   ],
+   "domains": [
+    "education",
+    "creative"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Block-based programming for kids.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Processing / p5.js",
+   "github": "processing",
+   "languages": [
+    "JavaScript",
+    "Java"
+   ],
+   "domains": [
+    "creative",
+    "education"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Creative coding tools; accessibility and docs work.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "FOSSASIA",
+   "github": "fossasia",
+   "languages": [
+    "Python",
+    "JavaScript",
+    "Java",
+    "Kotlin"
+   ],
+   "domains": [
+    "social",
+    "education",
+    "mobile"
+   ],
+   "beginner": 5,
+   "hackathon": 5,
+   "setup": "medium",
+   "notes": "Many small, beginner-friendly projects.",
+   "gsoc": true,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "CCExtractor",
+   "github": "ccextractor",
+   "languages": [
+    "C",
+    "Rust",
+    "Python"
+   ],
+   "domains": [
+    "social",
+    "devtools"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Subtitle extraction and related tools.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "MetaBrainz",
+   "github": "metabrainz",
+   "languages": [
+    "Python",
+    "JavaScript"
+   ],
+   "domains": [
+    "social",
+    "web",
+    "ai-ml-data"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Open music data projects.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "Mifos / Apache Fineract",
+   "github": "openMF",
+   "languages": [
+    "Java",
+    "Kotlin"
+   ],
+   "domains": [
+    "social",
+    "mobile"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Open-source finance for the unbanked.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "Sugar Labs",
+   "github": "sugarlabs",
+   "languages": [
+    "Python",
+    "JavaScript"
+   ],
+   "domains": [
+    "education",
+    "social"
+   ],
+   "beginner": 5,
+   "hackathon": 4,
+   "setup": "light",
+   "notes": "Learning software for children.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "AOSSIE",
+   "github": "AOSSIE-Org",
+   "languages": [
+    "TypeScript",
+    "Dart",
+    "Python"
+   ],
+   "domains": [
+    "social",
+    "web",
+    "mobile"
+   ],
+   "beginner": 5,
+   "hackathon": 5,
+   "setup": "light",
+   "notes": "Australian Open Source Software Innovation and Education: many beginner projects.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "C2SI",
+   "github": "c2siorg",
+   "languages": [
+    "Python",
+    "JavaScript",
+    "Java"
+   ],
+   "domains": [
+    "social",
+    "education",
+    "web"
+   ],
+   "beginner": 5,
+   "hackathon": 5,
+   "setup": "light",
+   "notes": "Student-led open source projects.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "OpenMRS",
+   "github": "openmrs",
+   "languages": [
+    "Java",
+    "TypeScript"
+   ],
+   "domains": [
+    "social",
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "Medical record system for low-resource settings.",
+   "gsoc": true,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "Public Lab",
+   "github": "publiclab",
+   "languages": [
+    "JavaScript",
+    "Ruby"
+   ],
+   "domains": [
+    "social",
+    "education"
+   ],
+   "beginner": 5,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Community science tools; very newcomer-friendly.",
+   "gsoc": false,
+   "brand": 2,
+   "legal": "varies"
+  },
+  {
+   "name": "OpenStreetMap",
+   "github": "openstreetmap",
+   "languages": [
+    "Ruby",
+    "JavaScript"
+   ],
+   "domains": [
+    "social",
+    "web"
+   ],
+   "beginner": 4,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "The collaborative world map software.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Godot Engine",
+   "github": "godotengine",
+   "languages": [
+    "C++"
+   ],
+   "domains": [
+    "creative"
+   ],
+   "beginner": 3,
+   "hackathon": 4,
+   "setup": "heavy",
+   "notes": "Open-source game engine.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Bevy",
+   "github": "bevyengine",
+   "languages": [
+    "Rust"
+   ],
+   "domains": [
+    "creative"
+   ],
+   "beginner": 4,
+   "hackathon": 4,
+   "setup": "medium",
+   "notes": "Data-driven game engine in Rust.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "Ruby on Rails",
+   "github": "rails",
+   "languages": [
+    "Ruby"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "Web framework with a long contribution history.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Laravel",
+   "github": "laravel",
+   "languages": [
+    "PHP"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "PHP web framework.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "Symfony",
+   "github": "symfony",
+   "languages": [
+    "PHP"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "light",
+   "notes": "PHP framework and components.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "WordPress",
+   "github": "WordPress",
+   "languages": [
+    "PHP",
+    "JavaScript"
+   ],
+   "domains": [
+    "web"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "medium",
+   "notes": "CMS; Gutenberg editor and core.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "curl",
+   "github": "curl",
+   "languages": [
+    "C"
+   ],
+   "domains": [
+    "devtools",
+    "security"
+   ],
+   "beginner": 3,
+   "hackathon": 2,
+   "setup": "light",
+   "notes": "Data transfer tool; tidy C and docs.",
+   "gsoc": false,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "OpenCV",
+   "github": "opencv",
+   "languages": [
+    "C++",
+    "Python"
+   ],
+   "domains": [
+    "ai-ml-data"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Computer vision library.",
+   "gsoc": true,
+   "brand": 4,
+   "legal": "varies"
+  },
+  {
+   "name": "mpv",
+   "github": "mpv-player",
+   "languages": [
+    "C"
+   ],
+   "domains": [
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 2,
+   "setup": "light",
+   "notes": "Media player.",
+   "gsoc": false,
+   "brand": 3,
+   "legal": "varies"
+  },
+  {
+   "name": "OBS Studio",
+   "github": "obsproject",
+   "languages": [
+    "C++",
+    "C"
+   ],
+   "domains": [
+    "creative",
+    "devtools"
+   ],
+   "beginner": 3,
+   "hackathon": 3,
+   "setup": "heavy",
+   "notes": "Streaming and recording software.",
+   "gsoc": false,
    "brand": 4,
    "legal": "varies"
   }

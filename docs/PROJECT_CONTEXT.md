@@ -64,11 +64,11 @@ Students connect their own GitHub (OAuth). Scopes: `public_repo` and `read:user`
 - **Secrets** live in `.env` (gitignored). The API key is never sent to the browser.
 
 ## What is built vs not built
-Built: question flow, matcher, scout, repo tour, coach chat, reply drafting and gated send, usage meter and budgets, Claude Code skill, 22 backend tests.
+Built: question flow, matcher over a 119-organisation catalogue, live GitHub discovery (`/api/discover`: repos with open good-first-issues in the student's languages/topics, not yet rated or policy-checked), per-step guides in the workspace (commands filled in with the real repo and issue), a gold-on-black editorial theme (Instrument Serif + Manrope, no purple),  scout, repo tour, coach chat, reply drafting and gated send, usage meter and budgets, Claude Code skill, 22 backend tests.
 Not built yet: Full-auto workers inside the web app (they run in Claude Code), persistent sessions and a database, rate limiting per user (state is in `data/` files), streaming responses, background polling of PRs for new comments, a hackathon team mode.
 
 ## Known limits
-- `mentor/orgs.json` ratings and `legal` fields are judgement and may be wrong; always verify live.
+- `mentor/orgs.json` (119 orgs) ratings and `legal` fields are judgement and may be wrong; every `legal` on the newer orgs is `varies`. Always verify live. Discovered (live) projects are unrated until scouted.
 - Unauthenticated GitHub allows 60 requests/hour; use a token.
 - The OAuth flow has been unit-tested with fake sessions but not run against a real GitHub OAuth App. The UI has been syntax-checked and the API smoke-tested, but not yet visually reviewed in a browser or run end-to-end with a real Anthropic key.
 - Sonnet/Haiku model IDs and prices are hard-coded defaults; check `backend/config.py` when models change.
@@ -90,7 +90,7 @@ backend tests: .venv/bin/python -m pytest backend -q
 | Path | What |
 |---|---|
 | `backend/llm.py` | Claude wrapper: tiers, caches, budgets |
-| `backend/matcher.py` | Free org scoring |
+| `backend/matcher.py` | Free org scoring (top 3 plus 12 runner-ups) |
 | `backend/github.py` | GitHub REST + policy scan |
 | `backend/agents.py` | Scout, explainer, coach |
 | `backend/replier.py` | Reviewer-comment replies |

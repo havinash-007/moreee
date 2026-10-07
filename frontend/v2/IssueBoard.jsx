@@ -14,9 +14,9 @@ export default function IssueBoard({ issues = [], org = '', skipped = [], onPick
   return (
     <section className="mx-auto max-w-6xl px-6 py-16">
       <button onClick={onBack} className="mb-8 text-sm font-bold text-zinc-400 transition hover:text-white">← Back to matches</button>
-      <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">Verified just now</p>
-      <h2 className="mt-3 text-5xl font-black leading-none tracking-tighter text-white md:text-7xl">
-        Three issues. <span className="bg-gradient-to-r from-emerald-300 to-cyan-400 bg-clip-text text-transparent">All yours to take.</span>
+      <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">Verified just now</p>
+      <h2 className="mt-3 text-6xl leading-[0.95] text-white md:text-8xl">
+        Three issues. <em className="bg-gradient-to-r from-amber-100 to-yellow-500 bg-clip-text pr-1 text-transparent">All yours to take.</em>
       </h2>
       <p className="mt-5 max-w-2xl text-lg font-medium text-zinc-300">
         Open, unassigned, and no pull request attached, in {org}. Pick the one that excites you.
@@ -33,9 +33,9 @@ export default function IssueBoard({ issues = [], org = '', skipped = [], onPick
         {issues.map((p, i) => {
           const flagged = (p.ai_flags || []).length > 0;
           return (
-            <article key={`${p.repo}#${p.number}`} className="flex flex-col rounded-3xl border border-white/10 bg-zinc-950/75 p-6 backdrop-blur transition duration-200 hover:-translate-y-1 hover:border-violet-400/60">
+            <article key={`${p.repo}#${p.number}`} className="flex flex-col rounded-3xl border border-white/10 bg-zinc-950/75 p-6 backdrop-blur transition duration-200 hover:-translate-y-1 hover:border-amber-400/60">
               <div className="flex items-center justify-between">
-                <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-wider text-violet-200">~{p.hours}h</span>
+                <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-200">~{p.hours}h</span>
                 <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-zinc-400 underline-offset-4 hover:text-white hover:underline">
                   {p.repo}#{p.number} ↗
                 </a>
@@ -63,7 +63,7 @@ export default function IssueBoard({ issues = [], org = '', skipped = [], onPick
               <button
                 onClick={() => onPick(i)}
                 disabled={busy}
-                className="mt-6 w-full rounded-full bg-white px-6 py-3.5 text-base font-extrabold text-zinc-950 transition duration-200 hover:scale-[1.03] hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400 disabled:opacity-50 disabled:hover:scale-100 mt-auto"
+                className="mt-6 w-full rounded-full bg-white px-6 py-3.5 text-base font-extrabold text-zinc-950 transition duration-200 hover:scale-[1.03] hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400 disabled:opacity-50 disabled:hover:scale-100 mt-auto"
               >
                 {busy ? 'Preparing your tour…' : 'Start working on this →'}
               </button>

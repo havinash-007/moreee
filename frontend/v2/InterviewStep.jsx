@@ -37,15 +37,15 @@ export default function InterviewStep({
           <span
             key={i}
             className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-              i < index ? 'bg-violet-400' : i === index ? 'bg-gradient-to-r from-violet-400 to-pink-400' : 'bg-white/15'
+              i < index ? 'bg-amber-400' : i === index ? 'bg-gradient-to-r from-amber-100 to-yellow-500' : 'bg-white/15'
             }`}
           />
         ))}
       </div>
-      <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">
+      <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300">
         Question {index + 1} of {total}
       </p>
-      <h2 className="mt-3 text-4xl font-black leading-[1.02] tracking-tighter text-white sm:text-5xl md:text-6xl">{q}</h2>
+      <h2 className="mt-3 text-5xl leading-[1] text-white sm:text-6xl md:text-7xl">{q}</h2>
       {multi && <p className="mt-3 text-base font-medium text-zinc-400">Pick as many as you like.</p>}
 
       <div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -56,15 +56,15 @@ export default function InterviewStep({
               key={v}
               onClick={() => toggle(v)}
               aria-pressed={on}
-              className={`group flex items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left text-lg font-bold transition duration-150 hover:scale-[1.02] focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400 ${
+              className={`group flex items-center gap-4 rounded-2xl border-2 px-5 py-4 text-left text-lg font-bold transition duration-150 hover:scale-[1.02] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400 ${
                 on
-                  ? 'border-violet-400 bg-violet-500/20 text-white shadow-[0_0_40px_-12px_rgba(167,139,250,1)]'
+                  ? 'border-amber-400 bg-amber-500/20 text-white shadow-[0_0_40px_-12px_rgba(229,192,123,0.8)]'
                   : 'border-white/10 bg-zinc-900/70 text-zinc-200 backdrop-blur hover:border-white/30'
               }`}
             >
               <span
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-black ${
-                  on ? 'bg-violet-400 text-zinc-950' : 'bg-white/10 text-zinc-400'
+                  on ? 'bg-amber-400 text-zinc-950' : 'bg-white/10 text-zinc-400'
                 }`}
               >
                 {on ? '✓' : i + 1}
@@ -86,7 +86,7 @@ export default function InterviewStep({
         <button
           onClick={onNext}
           disabled={!ready}
-          className="rounded-full bg-white px-10 py-3.5 text-lg font-extrabold text-zinc-950 transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          className="rounded-full bg-white px-10 py-3.5 text-lg font-extrabold text-zinc-950 transition duration-200 hover:scale-105 hover:brightness-110 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
         >
           {index === total - 1 ? 'Show my matches →' : 'Next →'}
         </button>

@@ -10,9 +10,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--ink:#14171f;--mute:#5d6678;--line:#e3e6ec;--brand:#4f46e5;--brand-ink:#fff;--ok:#16794a;--warn:#a15c00;--bad:#b42318;--chip:#eef0ff}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1115;--card:#171a21;--ink:#e8eaf0;--mute:#9aa3b5;--line:#272b35;--brand:#8b85ff;--brand-ink:#0f1115;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#22253a}}
-:root[data-theme=dark]{--bg:#0f1115;--card:#171a21;--ink:#e8eaf0;--mute:#9aa3b5;--line:#272b35;--brand:#8b85ff;--brand-ink:#0f1115;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#22253a}
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14171f;--mute:#5d6678;--line:#e3e6ec;--brand:#c9a14a;--brand-ink:#fff;--ok:#16794a;--warn:#a15c00;--bad:#b42318;--chip:#f6efe0}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1115;--card:#171a21;--ink:#e8eaf0;--mute:#9aa3b5;--line:#272b35;--brand:#e5c07b;--brand-ink:#0f1115;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#2a2418}}
+:root[data-theme=dark]{--bg:#0f1115;--card:#171a21;--ink:#e8eaf0;--mute:#9aa3b5;--line:#272b35;--brand:#e5c07b;--brand-ink:#0f1115;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#2a2418}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
@@ -57,7 +57,7 @@ textarea{min-height:80px;resize:vertical}
 
 #bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:none;touch-action:none}
 .has3d #bg{display:block}
-body{background:radial-gradient(1200px 700px at 70% 40%,#1b1f3a 0%,var(--bg) 60%)}
+body{background:radial-gradient(1200px 700px at 70% 40%,#1d1810 0%,var(--bg) 60%)}
 #labels{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
 .lbl{position:absolute;left:0;top:0;font-size:12px;color:#dfe3ff;text-shadow:0 1px 6px #000;white-space:nowrap;opacity:0;transition:opacity .25s;will-change:transform}
 #tip{position:fixed;left:0;top:0;z-index:6;pointer-events:none;max-width:260px;background:rgba(15,17,28,.92);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;opacity:0;transition:opacity .15s;display:grid;gap:2px}
@@ -85,7 +85,7 @@ header{background:color-mix(in srgb,var(--card) 80%,transparent);backdrop-filter
   <div class="meter" title="Spend this session vs. budget"><span id="spend">$0.000</span><div class="track"><div class="fill" id="fill"></div></div><span id="cap"></span></div>
 </div></header>
 <canvas id="bg" aria-hidden="true"></canvas><div id="labels" aria-hidden="true"></div><div id="tip" aria-hidden="true"></div>
-<div class="legend" aria-hidden="true"><span><i style="background:#6ea8ff"></i>Web</span><span><i style="background:#c084fc"></i>AI / data</span><span><i style="background:#34d399"></i>Cloud</span><span><i style="background:#fb7185"></i>Security</span><span><i style="background:#fbbf24"></i>Mobile</span><span><i style="background:#22d3ee"></i>Dev tools</span><span><i style="background:#f472b6"></i>Education</span><span>Bigger planet = more beginner-friendly</span></div>
+<div class="legend" aria-hidden="true"><span><i style="background:#6ea8ff"></i>Web</span><span><i style="background:#e8c468"></i>AI / data</span><span><i style="background:#34d399"></i>Cloud</span><span><i style="background:#fb7185"></i>Security</span><span><i style="background:#fbbf24"></i>Mobile</span><span><i style="background:#22d3ee"></i>Dev tools</span><span><i style="background:#f2b8a0"></i>Education</span><span>Bigger planet = more beginner-friendly</span></div>
 <main id="app"></main>
 <script src="/static/scene.js"></script>
 

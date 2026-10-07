@@ -12,7 +12,12 @@ Reply with JSON only: {"picks":[{"repo":"owner/name","number":N,"fit":"one sente
 
 
 def _org_repos(org: str, languages: list[str], n: int = 3) -> list[str]:
-    repos = github.get(f"/orgs/{org}/repos", {"sort": "updated", "per_page": 30, "type": "public"})
+    try:
+        repos = github.get(f"/orgs/{org}/repos", {"sort": "updated", "per_page": 30, "type": "public"})
+    except github.httpx.HTTPStatusError as e:
+        if e.response.status_code != 404:
+            raise
+        repos = github.get(f"/users/{org}/repos", {"sort": "updated", "per_page": 30})  # owner is a person, not an org
     want = {l.lower() for l in languages}
     ok = [r for r in repos if not r.get("archived") and not r.get("fork")]
     pref = [r for r in ok if (r.get("language") or "").lower() in want] or ok
@@ -20,9 +25,9 @@ def _org_repos(org: str, languages: list[str], n: int = 3) -> list[str]:
     return [r["full_name"] for r in pref[:n]]
 
 
-def scout(org: str, profile: dict, session_id: str) -> dict:
+def scout(org: str, profile: dict, session_id: str, repo: str | None = None) -> dict:
     pool, policies, skipped = [], {}, []
-    for full in _org_repos(org, profile.get("languages", [])):
+    for full in ([repo] if repo else _org_repos(org, profile.get("languages", []))):
         owner, repo = full.split("/")
         pol = github.policy_scan(owner, repo)
         policies[full] = pol

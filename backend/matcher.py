@@ -66,3 +66,8 @@ def rank(profile: dict, top: int = 3) -> list[dict]:
     scored = [score_org(o, profile) for o in catalogue()]
     scored.sort(key=lambda s: s["total"], reverse=True)
     return scored[:top]
+
+
+def rank_all(profile: dict, top: int = 3, others: int = 12) -> tuple[list[dict], list[dict]]:
+    scored = sorted((score_org(o, profile) for o in catalogue()), key=lambda s: s["total"], reverse=True)
+    return scored[:top], [s for s in scored[top:top + others] if not s["gate"]]
