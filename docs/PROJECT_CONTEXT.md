@@ -64,6 +64,17 @@ Students connect their own GitHub (OAuth). Scopes: `public_repo` and `read:user`
 5. If an organisation has nothing, the scout tries up to two next-best organisations and tells the student. If all fail, the empty state shows what was searched and offers other matches.
 6. Progress streams to the UI as newline-delimited JSON; the student sees each step. Clicking an issue re-verifies it first (`/api/verify`), and cards show how long ago they were verified.
 
+## Full-auto (built: Option A, local runner)
+Clicking Full-auto no longer just points at the terminal. The web app runs the gates and supervises; the worker runs on the student's own machine.
+- **Gates (all block):** explicit consent; the project's policy must not restrict AI contributions; the issue is re-verified free; one active job per student; 3 jobs per day.
+- **Job:** `jobs.py` + SQLite (`data/jobs.db`). Token shown once, stored hashed, prefixed `jt_` (a dash-leading token once broke the CLI).
+- **Runner:** `python -m backend.runner <id> <token>`. Forks and clones with the student's `gh`, runs Claude Code headless with `agents/worker_prompt.md`, streams progress, uploads the diff.
+- **Agent limits:** may edit files and run the project's build/tests; may not commit, push, use gh/curl/wget/ssh/sudo, or fetch URLs; GitHub/cloud tokens are scrubbed from its environment; capped by tool calls, wall-clock time and `--max-budget-usd`; issue text is treated as data (prompt-injection guard).
+- **Review gate:** the student reads a diff viewer, the worker's summary, tests run and an honest "not verified" list, rewrites the PR text, ticks "I can explain every line", confirms any CLA themselves. Diffs containing secrets are blocked.
+- **Only after Approve** does the runner commit (`-s` only if the student opted in and has a real git identity), push to *their* fork and open the PR with their own login. An AI-assistance note and "Fixes #N" are appended.
+- **Tests:** 28 for jobs and runner, including an offline end-to-end run with fake `gh`/`claude` and local git repos (verifies nothing is pushed before approval, tokens never reach the agent, correct PR arguments, and the failure paths). Not yet run against real GitHub with a real fork.
+- **Known limits:** the runner executes a stranger's build/test code on the student's machine (a throwaway VM is safer; a `--docker` option is the next step); the web page polls every 2 seconds rather than streaming; reloading the page after creating a job loses the one-time command.
+
 ## Do we need a database?
 Today: no for a single local user (files and browser storage cover it). Yes before hosting for several students. What it would hold:
 | Data | Now | Problem when hosted |
@@ -85,7 +96,7 @@ Recommendation: SQLite now (one file, no ops, easy to back up), then PostgreSQL 
 
 ## What is built vs not built
 Built: question flow, matcher over a 119-organisation catalogue, live GitHub discovery (`/api/discover`: repos with open good-first-issues in the student's languages/topics, not yet rated or policy-checked), per-step guides in the workspace (commands filled in with the real repo and issue), a gold-on-black editorial theme (Instrument Serif + Manrope, no purple),  scout, repo tour, coach chat, reply drafting and gated send, usage meter and budgets, Claude Code skill, 22 backend tests.
-Not built yet: Full-auto workers inside the web app (they run in Claude Code), persistent sessions and a database, rate limiting per user (state is in `data/` files), streaming responses, background polling of PRs for new comments, a hackathon team mode.
+Not built yet: hosted (server-side) Full-auto workers, persistent sessions, a database beyond jobs, rate limiting per user (state is in `data/` files), streaming responses, background polling of PRs for new comments, a hackathon team mode.
 
 ## Known limits
 - `mentor/orgs.json` (119 orgs) ratings and `legal` fields are judgement and may be wrong; every `legal` on the newer orgs is `varies`. Always verify live. Discovered (live) projects are unrated until scouted.

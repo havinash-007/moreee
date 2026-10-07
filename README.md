@@ -42,6 +42,8 @@ FastAPI backend plus a single-page UI: interview, org match, scout, repo tour, c
 
 **UI v2** (default at `/`): six self-contained Tailwind + React components in `frontend/v2/` (`HeroSection`, `InterviewStep`, `MatchPodium`, `IssueBoard`, `WorkspaceView`, `RepliesInbox`) plus a small shell (`app.jsx`). No build step: `index.html` loads React, Tailwind and Babel from CDNs and transpiles the `.jsx` files in the browser. Each component needs only React and has a header comment listing what to customise. Theme: Instrument Serif headings, Manrope body, champagne-gold accent on warm black. The workspace opens a per-step guide when you click a step; the matches screen adds runner-up organisations and a live GitHub search. The original page is still at `/classic`. See `docs/PRD-ui-v2.md` for the product thinking (the shipped build follows the bold-component approach, not the React/Vite rebuild proposed there).
 
+**Full-auto in the web app:** choose Full-auto, pass the pre-flight checks, paste the one command in a terminal, watch live progress, review the diff, and approve. The AI works on your machine in your own fork; nothing is committed or opened before you approve. See `docs/ARCHITECTURE.md` section 7.
+
 ## Use it in Claude Code
 
 ```bash

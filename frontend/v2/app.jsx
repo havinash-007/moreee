@@ -51,7 +51,7 @@ async function streamScout(body, onStep) {
 }
 
 export default function App() {
-  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress, BrowseCatalogue } = window.OSS;
+  const { HeroSection, InterviewStep, MatchPodium, DiscoverPanel, IssueBoard, WorkspaceView, RepliesInbox, ScoutProgress, BrowseCatalogue, FullAutoJob } = window.OSS;
   const [view, setView] = React.useState('mentor');
   const [step, setStep] = React.useState('hero');
   const [me, setMe] = React.useState({ hosted: false, login: 'local' });
@@ -66,6 +66,9 @@ export default function App() {
   const [discLoading, setDiscLoading] = React.useState(false);
   const [discError, setDiscError] = React.useState('');
   const [org, setOrg] = React.useState(null);
+  const [job, setJob] = React.useState(null);
+  const [jobCmd, setJobCmd] = React.useState('');
+  const [jobErr, setJobErr] = React.useState('');
   const [catStatus, setCatStatus] = React.useState(null);
   const [bFilters, setBFilters] = React.useState({ q: '', source: '', language: '', domain: '', page: 1 });
   const [bData, setBData] = React.useState(null);
@@ -107,6 +110,16 @@ export default function App() {
     })();
   }, []);
 
+  // Full-auto: poll the job while it is alive (the runner on the student's machine reports progress to the server)
+  React.useEffect(() => {
+    if (!job || ['done', 'failed', 'cancelled', 'expired'].includes(job.status)) return;
+    const t = setInterval(async () => {
+      try { const j = await api(`/api/jobs/${job.id}?since=${(job.events && job.events.length ? job.events[job.events.length - 1].id : 0)}`);
+        setJob((cur) => (cur && cur.id === j.id ? { ...j, events: [...(cur.events || []), ...j.events] } : cur)); } catch {}
+    }, 2000);
+    return () => clearInterval(t);
+  }, [job && job.id, job && job.status, job && job.events && job.events.length]);
+
   // an error belongs to the screen it happened on: clear it when the student moves on
   React.useEffect(() => { setError(''); }, [view, step]);
 
@@ -136,7 +149,7 @@ export default function App() {
   // blur the galaxy behind content screens; keep it crisp on the hero and during the interview
   React.useEffect(() => {
     if (!window.Scene) return;
-    const px = view === 'replies' || view === 'browse' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' ? 12 : 0;
+    const px = view === 'replies' || view === 'browse' ? 12 : step === 'matches' ? 6 : step === 'issues' ? 10 : step === 'work' || step === 'job' ? 12 : 0;
     Scene.setBlur(px);
   }, [view, step, orgs.length]);
 
@@ -183,12 +196,27 @@ export default function App() {
     return false;
   };
   const recheck = async (i) => { setChecking(i); setError(''); try { await verifyPick(i); } catch (e) { setError(e.message); } finally { setChecking(-1); } };
+  const openTour = async (p) => {
+    const t = await api('/api/tour', { repo: p.repo, issue_title: p.title, level: answers.skill || 'beginner' });
+    setIssue(p); setTourMd(t.markdown); setStructure((t.overview && t.overview.top_level) || []); setTourHtml(renderMd(t.markdown)); setMsgs([]); setStep('work');
+  };
   const pickIssue = (i) => run(async () => {
     if (!(await verifyPick(i))) return;
     const p = scout.picks[i];
-    const t = await api('/api/tour', { repo: p.repo, issue_title: p.title, level: answers.skill || 'beginner' });
-    setIssue(p); setTourMd(t.markdown); setStructure((t.overview && t.overview.top_level) || []); setTourHtml(renderMd(t.markdown)); setMsgs([]); setStep('work');
+    if (answers.mode === 'full') { setIssue(p); setJob(null); setJobCmd(''); setJobErr(''); setStep('job'); return; }  // Full-auto skips the paid tour
+    await openTour(p);
   });
+  const switchToLearn = () => run(async () => { setAnswers((a) => ({ ...a, mode: 'learn' })); await openTour(issue); });
+
+  const createJob = ({ consent, signoff }) => run(async () => {
+    setJobErr('');
+    try {
+      const j = await api('/api/jobs', { repo: issue.repo, number: issue.number, title: issue.title, consent, signoff });
+      setJobCmd(j.command); setJob(await api(`/api/jobs/${j.id}`));
+    } catch (e) { if (e.login) throw e; setJobErr(e.message); }
+  });
+  const approveJob = (a) => run(async () => { setJobErr(''); try { setJob({ ...(await api(`/api/jobs/${job.id}/approve`, a)) }); } catch (e) { if (e.login) throw e; setJobErr(e.message); } });
+  const cancelJob = () => run(async () => { if (job) setJob(await api(`/api/jobs/${job.id}/cancel`, {})); });
   const send = (text) => {
     const history = [...msgs.map((m) => ({ role: m.role, content: m.md || m.text })), { role: 'user', content: text }];
     setMsgs((m) => [...m, { role: 'user', text }]);
@@ -275,6 +303,9 @@ export default function App() {
             alternatives={allOrgs.filter((x) => !org || x.github.toLowerCase() !== org.github.toLowerCase()).slice(0, 4)} busy={busy}
             onPick={pickIssue} onRecheck={recheck} onTry={(a) => scoutOrg(a)}
             onBack={() => { setStep('matches'); back3d(); }} />
+        ) : step === 'job' && issue ? (
+          <FullAutoJob issue={issue} job={job} command={jobCmd} error={jobErr} busy={busy} onCreate={createJob} onApprove={approveJob} onCancel={cancelJob}
+            onBack={() => { setStep('issues'); }} onLearn={switchToLearn} />
         ) : step === 'work' && issue ? (
           answers.mode === 'full' ? (
             <section className="mx-auto max-w-3xl px-6 py-20">

@@ -4,12 +4,12 @@ import os
 
 import anthropic
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agents, auth, catalogue, config, llm, matcher, replier
+from . import agents, auth, catalogue, config, jobs, llm, matcher, replier
 
 app = FastAPI(title="oss-mentor")
 app.include_router(auth.router)
@@ -96,6 +96,11 @@ class SendReq(BaseModel):
     pr_url: str
     items: list[dict]
     disclose: bool = True
+
+
+@app.exception_handler(jobs.JobError)
+async def _job(_, e):
+    return JSONResponse({"error": str(e), "kind": "job"}, status_code=e.status)
 
 
 @app.exception_handler(llm.BudgetExceeded)
@@ -296,6 +301,85 @@ def replies_send(r: SendReq, user: auth.User = Depends(auth.require_user)):
 def usage(user: auth.User = Depends(auth.require_user)):
     return {"session": llm.ledger.session(user.login).as_dict(), "total": llm.ledger.total.as_dict(),
             "session_budget_usd": config.SESSION_BUDGET_USD}
+
+
+# ------------------------------------------------------------------ Full-auto jobs (the worker runs on the student's machine)
+class JobReq(BaseModel):
+    repo: str
+    number: int
+    title: str = ""
+    consent: bool = False
+    signoff: bool = False
+
+
+class ApproveReq(BaseModel):
+    pr_title: str
+    pr_body: str
+    cla_confirmed: bool = False
+
+
+@app.post("/api/jobs")
+def jobs_create(r: JobReq, request: Request, user: auth.User = Depends(auth.require_user)):
+    j = jobs.create(user.login, r.repo, r.number, r.title, r.consent, r.signoff)
+    base = str(request.base_url).rstrip("/")
+    j["command"] = f"cd ~/oss-mentor && .venv/bin/python -m backend.runner {j['id']} {j['token']} --server {base}"
+    return j
+
+
+@app.get("/api/jobs")
+def jobs_list(user: auth.User = Depends(auth.require_user)):
+    return jobs.list_for(user.login)
+
+
+@app.get("/api/jobs/{job_id}")
+def jobs_get(job_id: str, since: int = 0, user: auth.User = Depends(auth.require_user)):
+    return jobs.get(user.login, job_id, since)
+
+
+@app.post("/api/jobs/{job_id}/approve")
+def jobs_approve(job_id: str, r: ApproveReq, user: auth.User = Depends(auth.require_user)):
+    return jobs.approve(user.login, job_id, r.pr_title, r.pr_body, r.cla_confirmed)
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+def jobs_cancel(job_id: str, user: auth.User = Depends(auth.require_user)):
+    return jobs.cancel(user.login, job_id)
+
+
+class RunnerEvent(BaseModel):
+    stage: str = ""
+    text: str
+
+
+class RunnerDone(BaseModel):
+    pr_url: str | None = None
+    error: str | None = None
+
+
+@app.get("/api/runner/{job_id}/spec")
+def runner_spec(job_id: str, x_job_token: str = Header("")):
+    return jobs.spec(job_id, x_job_token)
+
+
+@app.post("/api/runner/{job_id}/event")
+def runner_event(job_id: str, e: RunnerEvent, x_job_token: str = Header("")):
+    jobs.runner_event(job_id, x_job_token, e.stage, e.text)
+    return {"ok": True}
+
+
+@app.post("/api/runner/{job_id}/result")
+def runner_result(job_id: str, payload: dict, x_job_token: str = Header("")):
+    return jobs.runner_result(job_id, x_job_token, payload)
+
+
+@app.get("/api/runner/{job_id}/status")
+def runner_status(job_id: str, x_job_token: str = Header("")):
+    return jobs.runner_status(job_id, x_job_token)
+
+
+@app.post("/api/runner/{job_id}/done")
+def runner_done(job_id: str, d: RunnerDone, x_job_token: str = Header("")):
+    return jobs.runner_done(job_id, x_job_token, d.pr_url, d.error)
 
 
 @app.get("/")

@@ -26,6 +26,7 @@ flowchart TB
     GH["github.py<br/>search, verify, policy scan, discover"]
     LLM["llm.py<br/>tiers, caches, budgets"]
     CAT["catalogue.py<br/>live org catalogue"]
+    JOBS["jobs.py<br/>Full-auto jobs: gates, state machine"]
   end
 
   subgraph Data["Local data (data/)"]
@@ -34,6 +35,7 @@ flowchart TB
     USAGE[("usage ledger")]
     REPLIES[("reply state")]
     CATFILE[("catalogue.json")]
+    DB[("jobs.db (SQLite)")]
   end
 
   subgraph Ext["External services"]
@@ -43,7 +45,18 @@ flowchart TB
     FEEDS["GSoC, LFX Mentorship,<br/>CNCF landscape, Apache feeds"]
   end
 
+  subgraph Student["Student's own machine (Full-auto only)"]
+    direction LR
+    RUN["runner.py<br/>fork, run agent, review gate, push, PR"]
+    CC["Claude Code (headless)<br/>locked-down worker agent"]
+    RUN --> CC
+  end
+
   Browser -->|fetch| API
+  API --> JOBS
+  JOBS --- DB
+  RUN -->|"one-time token over HTTP"| API
+  RUN -->|"student's own gh login"| GHAPI
   API --> MATCH
   API --> AG
   API --> REP
@@ -173,12 +186,45 @@ flowchart TD
   G3 --> G4["DCO and CLA are signed by the student, never by us"]
 ```
 
-## 7. Two front doors
+## 7. Full-auto (Option A): the worker runs on the student's machine
 
 ```mermaid
-flowchart LR
-  W["Web app<br/>localhost:8000"] --> SRV["Same backend modules"]
-  T["Claude Code terminal<br/>/oss-mentor skill + agents/*.md"] --> FA["Full-auto workers<br/>clone, fix, open PRs on the user's fork"]
-  T --> SRV2["Same rules: agents/RULES.md"]
+sequenceDiagram
+  autonumber
+  actor S as Student
+  participant UI as Browser
+  participant API as FastAPI + jobs.py
+  participant R as Runner (student's machine)
+  participant AG as Claude Code worker
+  participant GH as GitHub (student's fork)
+
+  S->>UI: Pick issue in Full-auto mode
+  UI->>S: Consent screen (AI writes it, you review it, you are responsible)
+  S->>UI: Tick consent
+  UI->>API: POST /api/jobs
+  API->>API: Gates: policy allows AI, issue still free, 1 active job, daily cap
+  API-->>UI: job id + one-time token (stored hashed)
+  UI-->>S: Command to paste
+  S->>R: python -m backend.runner id token
+  R->>API: GET spec (token)
+  R->>GH: fork + clone, branch from upstream default
+  R->>AG: run with worker prompt (no commit, no push, no gh, no curl, tokens scrubbed, caps)
+  AG-->>R: edits + test runs
+  R-->>API: live progress events
+  R->>API: diff + tests + not-verified list
+  API-->>UI: REVIEW screen (diff, summary, editable PR text)
+  S->>UI: Read the diff, rewrite the description, tick "I can explain it", Approve
+  UI->>API: POST approve
+  R->>API: poll status = approved
+  R->>GH: commit (-s only if the student chose DCO), push to fork, open PR
+  R->>API: PR url
+  API-->>UI: Done: link to the PR
 ```
-The web app covers Learn and Semi-auto. Full-auto runs only in Claude Code because it needs a local checkout and the user's GitHub login.
+Nothing is committed, pushed or opened before the Approve click. The agent never receives GitHub tokens. If the worker cannot produce a verified fix, the job ends as "failed" with its honest report and nothing is pushed.
+
+## 8. Web app and terminal
+```mermaid
+flowchart LR
+  W["Web app<br/>Learn, Semi-auto, Full-auto with the local runner"] --> SRV["Same backend modules"]
+  T["Claude Code terminal<br/>/oss-mentor skill + agents/*.md"] --> SRV2["Same rules: agents/RULES.md"]
+```
