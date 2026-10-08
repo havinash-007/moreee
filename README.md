@@ -4,6 +4,13 @@ An AI mentor for open-source contribution with three modes, from learning by han
 
 > Evolved from [`oss-bug-hunt`](https://github.com/havinash-007/oss-bug-hunt), which automated finding bugs and opening PRs. This version keeps that automation as one mode and adds two teaching modes.
 
+## Showreel
+
+- [Watch the showreel (16:9, widescreen)](docs/media/oss-mentor-showreel-16x9.mp4)
+- [Watch the showreel (9:16, vertical, for phones and socials)](docs/media/oss-mentor-showreel-9x16.mp4)
+
+Built by [Havinash Gangisetty](https://github.com/havinash-007).
+
 ## How it works
 
 ```mermaid
