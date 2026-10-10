@@ -21,13 +21,35 @@ def _headers(token: str | None = None) -> dict:
     return h
 
 
+def _send(method: str, url: str, attempts: int = 3, **kw) -> httpx.Response:
+    """One GitHub request, retried on network errors, 5xx and rate-limit responses (honouring Retry-After / reset, capped at 15s)."""
+    for n in range(attempts):
+        last = n == attempts - 1
+        try:
+            r = httpx.request(method, url, timeout=20, **kw)
+        except httpx.TransportError:
+            if last:
+                raise
+            time.sleep(1 + n)
+            continue
+        limited = r.status_code == 429 or (r.status_code == 403 and (r.headers.get("retry-after") or r.headers.get("x-ratelimit-remaining") == "0"))
+        if (limited or r.status_code >= 500) and not last:
+            wait = r.headers.get("retry-after")
+            if wait is None and limited and r.headers.get("x-ratelimit-reset"):
+                wait = int(r.headers["x-ratelimit-reset"]) - time.time()
+            time.sleep(min(max(float(wait or 1 + n), 1), 15))
+            continue
+        return r
+    return r
+
+
 def get(path: str, params: dict | None = None, token: str | None = None):
     who = hashlib.sha256((token or auth.current_token.get() or "").encode()).hexdigest()[:12]
     key = f"{who}:{path}?{sorted((params or {}).items())}"  # never share cached reads between users
     hit = _cache.get(key)
     if hit and time.time() - hit[0] < TTL:
         return hit[1]
-    r = httpx.get(f"{API}{path}", params=params, headers=_headers(token), timeout=20)
+    r = _send("GET", f"{API}{path}", params=params, headers=_headers(token))
     r.raise_for_status()
     data = r.json()
     _cache[key] = (time.time(), data)

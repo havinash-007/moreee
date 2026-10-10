@@ -221,15 +221,17 @@ def test_github_cache_not_shared_between_tokens(monkeypatch):
     calls = []
 
     class R:
+        status_code = 200
+        headers: dict = {}
         def __init__(self, tok): self.tok = tok
         def raise_for_status(self): pass
         def json(self): return {"seen_by": self.tok}
 
-    def fake_get(url, params=None, headers=None, timeout=None):
+    def fake_request(method, url, params=None, headers=None, timeout=None):
         calls.append(headers.get("Authorization"))
         return R(headers.get("Authorization"))
 
-    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(httpx, "request", fake_request)
     auth.current_token.set("tokA"); a = github.get("/repos/o/private")
     auth.current_token.set("tokB"); b = github.get("/repos/o/private")
     assert a != b and len(calls) == 2
