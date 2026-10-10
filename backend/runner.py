@@ -146,7 +146,7 @@ def prepare_repo(spec: dict, work: Path, login: str, api=None, sleep=time.sleep)
     repo, name = spec["repo"], spec["repo"].split("/")[1]
     owner = repo.split("/")[0]
     say = (lambda t: api.event("fork", t)) if api else (lambda t: None)
-    parent_of = lambda n: sh(["gh", "repo", "view", f"{login}/{n}", "--json", "parent", "-q", ".parent.nameWithOwner"], work, check=False).strip()
+    parent_of = lambda n: sh(["gh", "repo", "view", f"{login}/{n}", "--json", "parent", "-q", r'if .parent then "\(.parent.owner.login)/\(.parent.name)" else "" end'], work, check=False).strip()
     # The student may already own a repo called `name` that is NOT a fork of this project (e.g. their own `keploy`). Reuse a real fork
     # if there is one, otherwise fork under `name`, then `name-owner`, never touching a repo that is not a fork of the project.
     fork_name = ""
@@ -247,9 +247,15 @@ def main(argv=None) -> int:
     print(f"Job {spec['id']}: {spec['repo']} #{spec['number']} - {spec['title']}")
     print("\nThis will run the project's build and test commands on THIS machine, driven by an AI agent.")
     print("Only do this for projects you are comfortable running code from (a throwaway VM or container is safer).")
-    if not a.yes and input("Type YES to continue: ").strip() != "YES":
-        api.done(error="Cancelled at the runner prompt.")
-        return 1
+    if not a.yes:
+        try:
+            answer = input("Type yes to continue (anything else cancels): ").strip().lower()
+        except EOFError:  # no terminal attached, so nobody can confirm
+            answer = ""
+            print("\nNo terminal to confirm on. Re-run with --yes if you really want to skip the prompt.")
+        if answer not in ("yes", "y"):
+            api.done(error="Cancelled at the runner prompt.")
+            return 1
 
     work = Path(a.workdir) / spec["id"]
     work.mkdir(parents=True, exist_ok=True)

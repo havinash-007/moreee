@@ -53,7 +53,8 @@ def world(tmp_path, monkeypatch):
         elif a[:2] == ["repo", "view"] and "parent" in " ".join(a):
             made = open(LOG + ".made").read().split() if os.path.exists(LOG + ".made") else []
             n = a[2].split("/")[1]
-            print("acme/widgets" if a[2].startswith("student/") and (n in made or os.environ.get("FAKE_GH_PREFORKED")) else "")
+            # real gh's `parent` object has no nameWithOwner (only id, name, owner.login), so that jq path prints nothing
+            print("acme/widgets" if "nameWithOwner" not in " ".join(a) and a[2].startswith("student/") and (n in made or os.environ.get("FAKE_GH_PREFORKED")) else "")
         elif a[:2] == ["repo", "view"] and "name" in " ".join(a):
             print(a[2].split("/")[1] if a[2] in os.environ.get("FAKE_GH_TAKEN", "").split(",") else "")
         elif a[:2] == ["repo", "view"]: print("main")

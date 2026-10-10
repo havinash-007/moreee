@@ -251,6 +251,8 @@ def runner_status(job_id: str, token: str) -> dict:
 
 def runner_done(job_id: str, token: str, pr_url: str | None, error: str | None) -> dict:
     j = authenticate(job_id, token)
+    if j["status"] in ("failed", "done", "cancelled") and not pr_url:
+        return {"status": j["status"]}  # already finished: a re-run must not pile up duplicate "runner stopped" lines
     with db.connect() as con:
         if j["status"] == "approved":
             _move(con, j, "opening")
