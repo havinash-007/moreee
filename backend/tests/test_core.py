@@ -569,3 +569,15 @@ def test_lfx_retries_a_flaky_page_and_keeps_partial_results(monkeypatch):
     monkeypatch.setattr(c, "get_json", fake)
     out = c.fetch_lfx(log=lambda *_: None)
     assert sorted(e["repo"] for e in out) == ["lf/r1", "lf/r2"] and all(e["lfx"] for e in out)   # kept pages 1-2 despite the failure
+
+
+def test_github_401_for_signed_in_user_asks_to_sign_in_again(monkeypatch):
+    import httpx
+    from backend import app as appmod, auth
+    req = httpx.Request("GET", "https://api.github.com/x")
+    err = httpx.HTTPStatusError("401", request=req, response=httpx.Response(401, request=req))
+    monkeypatch.setattr(auth, "hosted", lambda: True)
+    auth.current_token.set("tok")
+    assert appmod._token_rejected(err)
+    auth.current_token.set("")
+    assert not appmod._token_rejected(err)

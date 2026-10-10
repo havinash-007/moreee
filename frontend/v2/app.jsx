@@ -43,7 +43,7 @@ async function streamScout(body, onStep) {
       if (!line) continue;
       const ev = JSON.parse(line);
       if (ev.type === 'step') onStep(ev.text);
-      else if (ev.type === 'error') throw new Error(FRIENDLY[ev.kind] || ev.error);
+      else if (ev.type === 'error') { const e = new Error(FRIENDLY[ev.kind] || ev.error); if (ev.kind === 'login') e.login = true; throw e; }
       else if (ev.type === 'result') result = ev;
     }
     if (done) break;

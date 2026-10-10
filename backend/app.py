@@ -146,6 +146,19 @@ async def _api(_, e):
     return JSONResponse({"error": f"Claude API error: {getattr(e, 'message', e)}", "kind": "claude"}, status_code=502)
 
 
+def _token_rejected(e: Exception) -> bool:
+    """GitHub said 401 to a signed-in student's token: it was revoked or expired, so only signing in again helps."""
+    return (auth.hosted() and isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 401
+            and bool(auth.current_token.get()))
+
+
+@app.exception_handler(httpx.HTTPStatusError)
+async def _gh_status(_, e):
+    if _token_rejected(e):
+        return JSONResponse({"error": "Your GitHub sign-in expired. Please connect GitHub again.", "kind": "login"}, status_code=401)
+    return await _gh(_, e)
+
+
 @app.exception_handler(httpx.HTTPError)
 async def _gh(_, e):
     return JSONResponse({"error": f"GitHub request failed: {e}", "kind": "github"}, status_code=502)
@@ -283,6 +296,9 @@ def scout_stream(r: ScoutReq, user: auth.User = Depends(auth.require_user)):
         except anthropic.AuthenticationError:
             yield json.dumps({"type": "error", "kind": "auth", "error": "auth"}) + "\n"
         except httpx.HTTPError as e:
+            if _token_rejected(e):
+                yield json.dumps({"type": "error", "kind": "login", "error": "login"}) + "\n"
+                return
             yield json.dumps({"type": "error", "kind": "github", "error": f"GitHub request failed: {e}"}) + "\n"
         except anthropic.APIError as e:
             yield json.dumps({"type": "error", "kind": "claude", "error": str(getattr(e, "message", e))}) + "\n"
